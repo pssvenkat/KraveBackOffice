@@ -6,6 +6,28 @@ Types: `feat` · `fix` · `docs` · `style` · `refactor` · `chore`
 
 ---
 
+## [0.3.0] — 2026-06-07 · Phase 2: Inventory Management
+
+### feat
+- `app/actions/inventory.ts` — Server Actions: `createInventoryItem`, `updateInventoryItem`, `deleteInventoryItem`, `adjustStock`
+  - `adjustStock` logs every change to `inventory_transactions` with source tracking
+  - Consume delta auto-negated; quantity floored at 0
+- `components/inventory/InventoryClient.tsx` — 3-tab inventory UI
+  - Category tabs (Seeds / Trays / Packing Materials) with per-tab low-stock badge
+  - Search filter, stock status badges (🟢 OK / 🟡 Low / 🔴 Critical), amber alert strip
+  - Hover-reveal actions: Adjust / Edit / Delete per row
+- `components/inventory/InventoryItemModal.tsx` — Add/Edit item
+  - Category radio cards, unit dropdown, stock + reorder + cost fields
+- `components/inventory/AdjustStockModal.tsx` — Stock adjustment
+  - Transaction type toggle (Add / Consume / Adjust), optional note
+- `components/inventory/DeleteInventoryButton.tsx` — Soft-delete with confirm
+- `app/(dashboard)/inventory/page.tsx` — Parallel server fetch, graceful error if tables missing
+
+### fix
+- Zod v4 breaking change: `z.enum([...] as const, { error: '...' })` — `errorMap` no longer valid
+
+---
+
 ## [0.2.0] — 2026-06-07 · Phase 1: Customer Management
 
 ### feat
@@ -69,19 +91,6 @@ Types: `feat` · `fix` · `docs` · `style` · `refactor` · `chore`
 - Created `API_SPEC.md` — all API routes, Supabase calls, Telegram webhook spec
 - Created `UI_SPEC.md` — design tokens, component patterns, page specs
 - Created `CHANGELOG.md` — this file
-
----
-
-## [Unreleased] — Phase 2: Inventory Management
-
-### Planned
-- Create `inventory_categories`, `inventory_items`, `inventory_transactions` tables
-- Seed 3 categories: Seeds, Trays, Packing Materials
-- Inventory list with 3 tabs (one per category)
-- Add / Edit / Delete inventory items
-- Stock adjustment modal (add / consume / adjust with note and source)
-- Low-stock alerts on dashboard
-- Transaction history per item
 
 ---
 
