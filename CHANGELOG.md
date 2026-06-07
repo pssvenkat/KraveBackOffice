@@ -6,6 +6,36 @@ Types: `feat` · `fix` · `docs` · `style` · `refactor` · `chore`
 
 ---
 
+## [0.4.0] — 2026-06-07 · Phase 3: Invoice Generation
+
+### feat
+- `app/actions/invoices.ts` — `createInvoice`, `updateInvoiceStatus`, `deleteInvoice`
+  - Auto invoice numbering: `KM-YYYY-NNN` (queries max + 1 per year)
+  - Line items from JSON hidden input (supports dynamic arrays)
+  - Subtotal, 5% GST amount, total computed server-side
+  - Delete restricted to `draft` status only
+- `components/invoices/InvoiceForm.tsx` — New invoice client form
+  - Dynamic add/remove line items (description, unit, qty, rate)
+  - Live subtotal + GST + total recalculation
+  - Customer selector, issue/due date pickers
+  - GST toggle with animated switch
+  - Sticky summary panel
+- `components/invoices/InvoiceDetail.tsx` — Invoice view + actions
+  - Mark Sent / Mark Paid buttons (context-aware visibility)
+  - Client-side PDF generation via `jsPDF` (dark header, line items table, totals)
+  - Delete with confirm dialog (draft only)
+  - Outstanding balance display for partial payments
+- `components/invoices/InvoicesClient.tsx` — Invoice list
+  - Status filter tabs: All / Draft / Sent / Partial / Paid
+  - KPI strip: Outstanding, Collected, Drafts count
+  - Overdue detection (past due date, not paid)
+  - Click-to-navigate rows
+- Routes: `/invoices`, `/invoices/new`, `/invoices/[id]`
+  - Dynamic `[id]` page `await`s `Promise<params>` (Next.js 16 pattern)
+  - `generateMetadata` also awaits params for per-invoice page titles
+
+---
+
 ## [0.3.0] — 2026-06-07 · Phase 2: Inventory Management
 
 ### feat

@@ -236,8 +236,8 @@
 | 0 — Setup & Infrastructure | ✅ Complete | [kravebackoffice.vercel.app](https://kravebackoffice.vercel.app) |
 | 1 — Customer Management | ✅ Complete | Auto-deployed via Vercel |
 | 2 — Inventory Management | ✅ Complete | Auto-deployed via Vercel |
-| 3 — Invoice Generation | 🔄 Up next | — |
-| 4 — Receivables & Payments | ⬜ Not started | — |
+| 3 — Invoice Generation | ✅ Complete | Auto-deployed via Vercel |
+| 4 — Receivables & Payments | 🔄 Up next | — |
 | 5 — Dashboard & Analytics | ⬜ Not started | — |
 | 6 — Voice Control (Web Speech) | ⬜ Not started | — |
 | 7 — Telegram Bot | ⬜ Not started | — |

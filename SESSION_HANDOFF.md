@@ -6,93 +6,80 @@
 
 ## Last Completed
 
-- Phase 2: Inventory Management — fully built, clean build, pushed to GitHub, deploying to Vercel
-  - `app/actions/inventory.ts` — Server Actions: `createInventoryItem`, `updateInventoryItem`, `deleteInventoryItem`, `adjustStock`
-  - `components/inventory/InventoryItemModal.tsx` — Add/Edit with category radio cards, unit selector, stock/reorder/cost fields
-  - `components/inventory/AdjustStockModal.tsx` — Add/Consume/Adjust transaction type selector with note
-  - `components/inventory/DeleteInventoryButton.tsx` — Soft-delete with confirm dialog
-  - `components/inventory/InventoryClient.tsx` — 3-tab UI (Seeds/Trays/Packing), search, low-stock alert strip, status badges
-  - `app/(dashboard)/inventory/page.tsx` — Parallel server fetch, graceful SQL-missing error
-  - **Bug fixed**: Zod v4 `z.enum()` requires `as const` tuple + `error` key (not `errorMap`)
+- **Phase 3: Invoice Generation** — fully built, clean build (14 routes), pushed to GitHub, deploying to Vercel
+  - `app/actions/invoices.ts` — `createInvoice` (KM-YYYY-NNN auto-numbering), `updateInvoiceStatus`, `deleteInvoice`
+  - `components/invoices/InvoiceForm.tsx` — Dynamic line items, live GST/total calc, JSON-hidden-input pattern
+  - `components/invoices/InvoiceDetail.tsx` — Full invoice view, Mark Sent/Paid, client-side jsPDF, delete
+  - `components/invoices/InvoicesClient.tsx` — Status tabs, KPI strip, overdue detection
+  - `app/(dashboard)/invoices/page.tsx` — Invoice list (server)
+  - `app/(dashboard)/invoices/new/page.tsx` — New invoice form (server loads customers)
+  - `app/(dashboard)/invoices/[id]/page.tsx` — Invoice detail (dynamic, awaits `Promise<params>`)
 
-- Phase 1: Customer Management — ✅ complete and live
+- Phase 2: Inventory Management ✅
+- Phase 1: Customer Management ✅
+- Phase 0: Infrastructure ✅
 
 ---
 
-## ⚠️ ACTION REQUIRED — Run Inventory SQL in Supabase
+## ⚠️ ACTION REQUIRED — Run Invoice SQL in Supabase
 
-Go to **[Supabase SQL Editor](https://supabase.com/dashboard/project/eostzwmrakhfbbehytaw/sql/new)** and run this:
+Go to **[Supabase SQL Editor](https://supabase.com/dashboard/project/eostzwmrakhfbbehytaw/sql/new)** and run:
 
 ```sql
--- Categories (seeded list)
-create table inventory_categories (
-  id    uuid primary key default gen_random_uuid(),
-  name  text not null unique,
-  icon  text
+create table invoices (
+  id             uuid primary key default gen_random_uuid(),
+  invoice_number text not null unique,
+  customer_id    uuid not null references customers(id),
+  issue_date     date not null,
+  due_date       date,
+  status         text not null default 'draft'
+                   check (status in ('draft','sent','paid','partial')),
+  subtotal       numeric(12,2) not null default 0,
+  apply_gst      boolean not null default false,
+  gst_rate       numeric(5,2) not null default 5,
+  gst_amount     numeric(12,2) not null default 0,
+  total          numeric(12,2) not null default 0,
+  amount_paid    numeric(12,2) not null default 0,
+  notes          text,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
 );
 
-insert into inventory_categories (name, icon) values
-  ('Seeds', '🌱'),
-  ('Trays', '🗂️'),
-  ('Packing Materials', '📦');
-
-alter table inventory_categories enable row level security;
-create policy "Authenticated read/write" on inventory_categories
-  for all using (auth.role() = 'authenticated');
-
--- Inventory items
-create table inventory_items (
-  id              uuid primary key default gen_random_uuid(),
-  category_id     uuid not null references inventory_categories(id),
-  name            text not null,
-  unit            text not null,
-  quantity        numeric(12,3) not null default 0,
-  reorder_level   numeric(12,3) not null default 0,
-  cost_per_unit   numeric(10,2),
-  is_active       boolean not null default true,
-  created_at      timestamptz not null default now(),
-  updated_at      timestamptz not null default now()
-);
-
-create trigger inventory_items_updated_at
-  before update on inventory_items
+create trigger invoices_updated_at
+  before update on invoices
   for each row execute function update_updated_at();
 
-alter table inventory_items enable row level security;
-create policy "Authenticated read/write" on inventory_items
+alter table invoices enable row level security;
+create policy "Authenticated read/write" on invoices
   for all using (auth.role() = 'authenticated');
 
--- Transaction log
-create table inventory_transactions (
-  id                uuid primary key default gen_random_uuid(),
-  item_id           uuid not null references inventory_items(id),
-  transaction_type  text not null check (transaction_type in ('add','consume','adjust')),
-  quantity_delta    numeric(12,3) not null,
-  quantity_after    numeric(12,3) not null,
-  note              text,
-  source            text default 'manual' check (source in ('manual','voice','telegram')),
-  created_at        timestamptz not null default now()
+create table invoice_items (
+  id           uuid primary key default gen_random_uuid(),
+  invoice_id   uuid not null references invoices(id) on delete cascade,
+  description  text not null,
+  unit         text,
+  quantity     numeric(12,3) not null default 1,
+  unit_price   numeric(12,2) not null default 0,
+  line_total   numeric(12,2) generated always as (quantity * unit_price) stored
 );
 
-alter table inventory_transactions enable row level security;
-create policy "Authenticated read/write" on inventory_transactions
+alter table invoice_items enable row level security;
+create policy "Authenticated read/write" on invoice_items
   for all using (auth.role() = 'authenticated');
 ```
 
-> **Note:** `update_updated_at()` function was created in Phase 1 SQL. If you skipped Phase 1, add it first.
-
 ---
 
-## Current Task
+## Next Task
 
-**Phase 3 — Invoice Generation** (not yet started)
+**Phase 4 — Receivables & Payments**
 
-- Create `invoices`, `invoice_items` tables + invoice number sequence
-- Invoice list page with status filters (Draft / Sent / Paid / Partial)
-- New invoice form with line item builder
-- Optional 5% GST toggle per invoice
-- PDF export via `jsPDF`
-- Status workflow: Draft → Sent → Paid / Partial
+- Create `payments` table
+- Trigger to auto-update `invoices.amount_paid`
+- Receivables page: outstanding invoices with aging buckets (Current / 1–30 / 31–60 / 60+)
+- Record Payment modal (full/partial, payment method, reference)
+- Payment history per invoice
+- Dashboard KPI sync
 
 ---
 
@@ -101,9 +88,9 @@ create policy "Authenticated read/write" on inventory_transactions
 1. ✅ Phase 0 — Infrastructure
 2. ✅ Phase 1 — Customer Management
 3. ✅ Phase 2 — Inventory Management
-4. 🔄 **Phase 3 — Invoice Generation** ← next
-5. Phase 4 — Receivables & Payments
-6. Phase 5 — Dashboard & Analytics (live KPIs)
+4. ✅ Phase 3 — Invoice Generation
+5. 🔄 **Phase 4 — Receivables & Payments** ← next
+6. Phase 5 — Dashboard & Analytics (live KPIs, charts)
 7. Phase 6 — Voice Control (Web Speech API)
 8. Phase 7 — Telegram Bot
 9. Phase 8 — Polish & Hardening
@@ -126,9 +113,9 @@ create policy "Authenticated read/write" on inventory_transactions
 
 ## Known Issues / Pending Actions
 
-- [ ] **Run inventory SQL in Supabase** (see above — required for Phase 2 to work)
-- [ ] Supabase Auth user invite still pending if not done
-- [ ] `update_updated_at()` function must exist before running inventory SQL (created in Phase 1 SQL)
+- [ ] **Run invoices + invoice_items SQL in Supabase** (see above)
+- [ ] Run inventory SQL if not done yet (Phase 2)
+- [ ] Supabase Auth user invite if not done
 
 ---
 
@@ -137,14 +124,16 @@ create policy "Authenticated read/write" on inventory_transactions
 | Decision | Rationale |
 |---|---|
 | `proxy.ts` (not `middleware.ts`) | Next.js 16 — file AND function must be named `proxy` |
-| `@supabase/ssr` | SSR-safe Supabase client for App Router |
-| Server Actions + `useActionState` | Next.js 16 form pattern — no API routes needed for CRUD |
-| `revalidatePath()` | Cache invalidation after every mutation |
-| Soft delete (`is_active = false`) | Preserves history |
-| Zod v4: `z.enum([...] as const, { error: '...' })` | Breaking change from Zod v3 (`errorMap` → `error`) |
+| `params` is `Promise<{id}>` | Next.js 16 — always `await params` in server pages and `generateMetadata` |
+| Line items via JSON hidden input | Dynamic arrays can't be serialised cleanly via FormData; JSON in `<input type="hidden">` is the pattern |
+| Client-side jsPDF | Avoids server-side PDF complexity; jsPDF runs in browser on "Download PDF" click |
+| `line_total` as generated column | `quantity * unit_price` computed in Postgres, avoids drift |
+| Invoice delete = draft only | Sent/paid invoices are financial records — cannot be deleted |
+| Soft delete customers/inventory | Preserves history |
+| Zod v4: `z.enum([...] as const, { error: '...' })` | Breaking change from Zod v3 |
 | Tailwind CSS v4 | Uses `@import "tailwindcss"` syntax |
-| INR (₹) currency | Business in India |
-| GST 5% optional per invoice | Not all customers GST-registered |
+| INR (₹) | Business in India |
+| GST 5% optional | Not all customers GST-registered |
 | Invoice format | `KM-YYYY-NNN` (e.g. KM-2026-001) |
 
 ---
@@ -153,29 +142,28 @@ create policy "Authenticated read/write" on inventory_transactions
 
 ```
 KraveBackOffice/
-├── proxy.ts
 ├── app/
 │   ├── actions/
 │   │   ├── customers.ts                    # ✅ Phase 1
-│   │   └── inventory.ts                    # ✅ Phase 2
+│   │   ├── inventory.ts                    # ✅ Phase 2
+│   │   └── invoices.ts                     # ✅ Phase 3
 │   └── (dashboard)/
 │       ├── customers/page.tsx              # ✅ Phase 1
 │       ├── inventory/page.tsx              # ✅ Phase 2
-│       ├── invoices/page.tsx               # ← Phase 3
+│       ├── invoices/
+│       │   ├── page.tsx                    # ✅ Phase 3 — list
+│       │   ├── new/page.tsx                # ✅ Phase 3 — create
+│       │   └── [id]/page.tsx              # ✅ Phase 3 — detail
 │       ├── receivables/page.tsx            # ← Phase 4
 │       ├── voice/page.tsx                  # ← Phase 6
 │       └── settings/page.tsx              # ← Phase 8
 ├── components/
-│   ├── Sidebar.tsx
-│   ├── customers/
-│   │   ├── CustomerModal.tsx               # ✅ Phase 1
-│   │   ├── CustomersClient.tsx             # ✅ Phase 1
-│   │   └── DeleteCustomerButton.tsx        # ✅ Phase 1
-│   └── inventory/
-│       ├── InventoryItemModal.tsx          # ✅ Phase 2
-│       ├── AdjustStockModal.tsx            # ✅ Phase 2
-│       ├── InventoryClient.tsx             # ✅ Phase 2
-│       └── DeleteInventoryButton.tsx       # ✅ Phase 2
+│   ├── customers/ (3 files)               # ✅ Phase 1
+│   ├── inventory/ (4 files)               # ✅ Phase 2
+│   └── invoices/
+│       ├── InvoiceForm.tsx                 # ✅ Phase 3
+│       ├── InvoiceDetail.tsx               # ✅ Phase 3
+│       └── InvoicesClient.tsx              # ✅ Phase 3
 └── lib/supabase/
     ├── client.ts
     └── server.ts
@@ -183,4 +171,4 @@ KraveBackOffice/
 
 ---
 
-*Last updated: 2026-06-07 | Session: Phase 2 — Inventory Management complete*
+*Last updated: 2026-06-07 | Session: Phase 3 — Invoice Generation complete*
