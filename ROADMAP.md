@@ -233,8 +233,8 @@
 
 | Phase | Status | Deployed |
 |---|---|---|
-| 0 — Setup & Infrastructure | ⬜ Not started | — |
-| 1 — Customer Management | ⬜ Not started | — |
+| 0 — Setup & Infrastructure | ✅ Complete | [kravebackoffice.vercel.app](https://kravebackoffice.vercel.app) |
+| 1 — Customer Management | 🔄 Up next | — |
 | 2 — Inventory Management | ⬜ Not started | — |
 | 3 — Invoice Generation | ⬜ Not started | — |
 | 4 — Receivables & Payments | ⬜ Not started | — |
