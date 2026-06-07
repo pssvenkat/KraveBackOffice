@@ -6,6 +6,29 @@ Types: `feat` · `fix` · `docs` · `style` · `refactor` · `chore`
 
 ---
 
+## [0.5.0] — 2026-06-07 · Phase 4: Receivables & Payments
+
+### feat
+- `app/actions/payments.ts` — `recordPayment` Server Action
+  - Validates amount vs outstanding (rejects overpayment)
+  - Auto-updates `invoices.amount_paid` and sets status `partial` or `paid`
+  - Revalidates both `/receivables` and `/invoices/[id]`
+- `components/receivables/RecordPaymentModal.tsx` — Payment entry modal
+  - Outstanding badge (amber), amount defaults to full outstanding
+  - Payment method radio cards: UPI / Cash / Bank Transfer / Cheque / Other
+  - Date picker (defaults to today), reference field (UTR/cheque no.)
+- `components/receivables/ReceivablesClient.tsx` — Receivables dashboard
+  - Aging KPI cards: Current / 1–30 / 31–60 / 60+ (clickable filters)
+  - Total outstanding banner with invoice + customer count
+  - Table: invoice#, customer, due date, total, paid, outstanding, aging badge
+  - Overdue days counter (e.g. "14d overdue")
+  - Hover-reveal "Record Payment" button per row
+  - Footer row with bucket total
+- `app/(dashboard)/receivables/page.tsx` — Server page
+  - Only fetches `sent` and `partial` invoices, ordered by due date (oldest first)
+
+---
+
 ## [0.4.0] — 2026-06-07 · Phase 3: Invoice Generation
 
 ### feat

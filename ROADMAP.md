@@ -237,8 +237,8 @@
 | 1 — Customer Management | ✅ Complete | Auto-deployed via Vercel |
 | 2 — Inventory Management | ✅ Complete | Auto-deployed via Vercel |
 | 3 — Invoice Generation | ✅ Complete | Auto-deployed via Vercel |
-| 4 — Receivables & Payments | 🔄 Up next | — |
-| 5 — Dashboard & Analytics | ⬜ Not started | — |
+| 4 — Receivables & Payments | ✅ Complete | Auto-deployed via Vercel |
+| 5 — Dashboard & Analytics | 🔄 Up next | — |
 | 6 — Voice Control (Web Speech) | ⬜ Not started | — |
 | 7 — Telegram Bot | ⬜ Not started | — |
 | 8 — Polish & Hardening | ⬜ Not started | — |
