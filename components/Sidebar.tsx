@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Users,
   Package,
+  Package2,
   FileText,
   CreditCard,
   Settings,
@@ -18,11 +19,12 @@ import {
 import { clsx } from 'clsx'
 
 const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/customers', label: 'Customers', icon: Users },
-  { href: '/inventory', label: 'Inventory', icon: Package },
-  { href: '/invoices', label: 'Invoices', icon: FileText },
-  { href: '/receivables', label: 'Receivables', icon: CreditCard },
+  { href: '/dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
+  { href: '/customers',  label: 'Customers',   icon: Users },
+  { href: '/inventory',  label: 'Inventory',   icon: Package },
+  { href: '/items',      label: 'Items',        icon: Package2 },
+  { href: '/invoices',   label: 'Invoices',     icon: FileText },
+  { href: '/receivables',label: 'Receivables',  icon: CreditCard },
 ]
 
 const BOTTOM_ITEMS = [
