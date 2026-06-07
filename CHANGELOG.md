@@ -6,6 +6,39 @@ Types: `feat` · `fix` · `docs` · `style` · `refactor` · `chore`
 
 ---
 
+## [0.2.0] — 2026-06-07 · Phase 1: Customer Management
+
+### feat
+- `app/actions/customers.ts` — Server Actions: `createCustomer`, `updateCustomer`, `deleteCustomer`
+  - Zod schema validation with field-level errors
+  - Auth check on every action
+  - `revalidatePath('/customers')` for cache invalidation
+  - Soft-delete (sets `is_active = false`, never hard-deletes)
+- `components/customers/CustomerModal.tsx` — Add/Edit modal
+  - Uses `useActionState` + `useFormStatus` (Next.js 16 pattern)
+  - Bound `updateCustomer` for edits via `.bind(null, id)`
+  - Auto-closes on `state.success`, resets form
+  - Click-outside-to-close
+  - Inline field-level error display
+- `components/customers/CustomersClient.tsx` — Full customer table
+  - Client-side search filtering (name, phone, email, city)
+  - Avatar initials per customer
+  - Contact/Location/GSTIN columns
+  - Hover-reveal edit/delete actions
+  - Empty state with call-to-action
+- `components/customers/DeleteCustomerButton.tsx` — Inline confirm dialog
+  - `useTransition` for non-blocking delete
+  - Error display if delete fails
+- `app/(dashboard)/customers/page.tsx` — Server component
+  - Fetches all active customers server-side
+  - Graceful error with SQL hint if table doesn't exist yet
+
+### docs
+- Updated `DATABASE_SCHEMA.md` — customers table status
+- Updated `CHANGELOG.md`, `SESSION_HANDOFF.md`, `ROADMAP.md`
+
+---
+
 ## [0.1.0] — 2026-06-07 · Phase 0: Project Setup & Infrastructure
 
 ### feat
@@ -36,17 +69,6 @@ Types: `feat` · `fix` · `docs` · `style` · `refactor` · `chore`
 - Created `API_SPEC.md` — all API routes, Supabase calls, Telegram webhook spec
 - Created `UI_SPEC.md` — design tokens, component patterns, page specs
 - Created `CHANGELOG.md` — this file
-
----
-
-## [Unreleased] — Phase 1: Customer Management
-
-### Planned
-- Create `customers` table in Supabase with RLS
-- Customer list page with search and filter
-- Add / Edit customer modal with validation (Zod + react-hook-form)
-- Soft-delete customer
-- Customer detail page (foundation for future invoice history)
 
 ---
 
