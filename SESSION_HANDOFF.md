@@ -6,15 +6,15 @@
 
 ## Last Completed
 
-- **Items Catalog** (unplanned addition — user requested)
-  - `app/actions/catalogItems.ts` — `createCatalogItem`, `updateCatalogItem`, `deleteCatalogItem` (soft-delete)
-  - `components/items/CatalogItemModal.tsx` — UOM grouped picker (Weight / Quantity / Volume / Service), HSN code, default rate
-  - `components/items/CatalogItemsClient.tsx` — search, UOM colour badges, hover-reveal edit/delete
-  - `app/(dashboard)/items/page.tsx` — `/items` route added
-  - `Sidebar.tsx` — "Items" nav entry added between Inventory and Invoices (Package2 icon)
-  - `InvoiceForm.tsx` — per-row catalog dropdown with search; selecting an item auto-fills **description + UOM + rate** (all editable after)
-  - `invoices/new/page.tsx` — parallel fetch of customers + catalog items
+- **Phase 6: Voice Control** — Web Speech API, header mic button, command center page
+  - `hooks/useVoiceRecognition.ts` — SpeechRecognition lifecycle, en-IN, interim results, error handling
+  - `components/voice/VoiceCommandEngine.ts` — Regex command parser, 10 destinations, exported command list
+  - `components/voice/VoiceButton.tsx` — Header mic: pulse rings while listening, interim speech bubble, toast
+  - `components/voice/VoiceCommandCenter.tsx` — `/voice` page: large mic, history log, command reference
+  - `app/(dashboard)/layout.tsx` — VoiceButton added to sticky header (auto-hides in Firefox/Safari)
+  - **Fix**: SpeechRecognition typed as `any` (browser types not in default tsconfig lib)
 
+- Items Catalog ✅ (bonus feature — per user request)
 - Phase 5: Dashboard & Analytics ✅
 - Phase 4: Receivables & Payments ✅
 - Phase 3: Invoice Generation ✅
@@ -24,76 +24,66 @@
 
 ---
 
-## ⚠️ ACTION REQUIRED — Run catalog_items SQL in Supabase
+## Voice Commands Reference
 
-**[Open SQL Editor →](https://supabase.com/dashboard/project/eostzwmrakhfbbehytaw/sql/new)**
-
-```sql
-create table catalog_items (
-  id            uuid primary key default gen_random_uuid(),
-  name          text not null unique,
-  description   text,
-  uom           text not null,
-  default_price numeric(12,2) not null default 0,
-  hsn_code      text,
-  is_active     boolean not null default true,
-  created_at    timestamptz not null default now(),
-  updated_at    timestamptz not null default now()
-);
-
-create trigger catalog_items_updated_at
-  before update on catalog_items
-  for each row execute function update_updated_at();
-
-alter table catalog_items enable row level security;
-create policy "Authenticated read/write" on catalog_items
-  for all using (auth.role() = 'authenticated');
-```
+| Phrase | Action |
+|---|---|
+| `"dashboard"` / `"home"` | Navigate to Dashboard |
+| `"customers"` | Navigate to Customers |
+| `"inventory"` / `"stock"` | Navigate to Inventory |
+| `"catalog"` / `"products"` | Navigate to Items Catalog |
+| `"new invoice"` / `"create invoice"` | Open New Invoice form |
+| `"invoices"` | Navigate to Invoices |
+| `"receivables"` / `"outstanding"` / `"unpaid"` | Navigate to Receivables |
+| `"low stock"` / `"running low"` | Navigate to Inventory |
+| `"settings"` | Navigate to Settings |
+| `"help"` / `"commands"` | Navigate to Voice page |
 
 ---
 
-## Pending SQL (all phases — run in order if not yet done)
+## ⚠️ Pending SQL — Run if not already done
 
-1. **Phase 1** — `customers`
-2. **Phase 2** — `inventory_categories`, `inventory_items`, `inventory_transactions`
-3. **Phase 3** — `invoices`, `invoice_items`
-4. **Phase 4** — `payments`
-5. **Items Catalog** — `catalog_items` (see above)
+Run in order from **[Supabase SQL Editor](https://supabase.com/dashboard/project/eostzwmrakhfbbehytaw/sql/new)**:
 
-Full SQL for all phases is in **`DATABASE_SCHEMA.md`**.
+1. Phase 1 — `customers`
+2. Phase 2 — `inventory_categories`, `inventory_items`, `inventory_transactions`
+3. Phase 3 — `invoices`, `invoice_items`
+4. Phase 4 — `payments`
+5. Items Catalog — `catalog_items`
+
+Full SQL in **`DATABASE_SCHEMA.md`**.
 
 ---
 
 ## Next Task
 
-**Phase 6 — Voice Control (Web Speech API)**
+**Phase 7 — Telegram Bot**
 
-- Floating mic button in the app header (visible on all pages)
-- Web Speech API `SpeechRecognition` integration (Chrome/Edge only — graceful fallback)
-- NLP command parser (regex/keyword matching):
-  - `"add 500g sunflower seeds"` → `adjustStock` action
-  - `"show low stock"` → navigate to `/inventory`
-  - `"new invoice"` → navigate to `/invoices/new`
-  - `"outstanding balance"` → navigate to `/receivables`
-  - `"go to customers"` → navigate to `/customers`
-- Visual feedback: pulse animation while listening, transcript display
-- Confirmation toast after command executes
-- `/voice` page with command reference card
+- Webhook endpoint: `POST /api/telegram/webhook`
+- Bot commands:
+  - `/start` — greeting + menu
+  - `/stock` — list low stock items
+  - `/outstanding` — list unpaid invoices + totals
+  - `/addstock [item] [qty]` — quick stock adjustment
+  - `/revenue` — this month's revenue
+- Telegram Bot API via fetch (no heavy SDK)
+- Environment variable: `TELEGRAM_BOT_TOKEN`
+
+**Phase 8 — Polish & Hardening**
+- Loading skeletons
+- Error boundaries
+- Mobile responsive tweaks
+- SEO meta tags
 
 ---
 
 ## Next Tasks Queue
 
-1. ✅ Phase 0 — Infrastructure
-2. ✅ Phase 1 — Customer Management
-3. ✅ Phase 2 — Inventory Management
-4. ✅ Phase 3 — Invoice Generation
-5. ✅ Phase 4 — Receivables & Payments
-6. ✅ Phase 5 — Dashboard & Analytics
-7. ✅ Items Catalog (bonus feature)
-8. 🔄 **Phase 6 — Voice Control** ← next
-9. Phase 7 — Telegram Bot
-10. Phase 8 — Polish & Hardening
+1. ✅ Phase 0–5 complete
+2. ✅ Items Catalog
+3. ✅ Phase 6 — Voice Control
+4. 🔄 **Phase 7 — Telegram Bot** ← next
+5. Phase 8 — Polish & Hardening
 
 ---
 
@@ -111,21 +101,20 @@ Full SQL for all phases is in **`DATABASE_SCHEMA.md`**.
 
 ---
 
-## Key Technical Decisions (Do Not Change Without Review)
+## Key Technical Decisions
 
 | Decision | Rationale |
 |---|---|
-| `proxy.ts` (not `middleware.ts`) | Next.js 16 convention |
-| `params` is `Promise<{id}>` | Always `await params` in server pages + `generateMetadata` |
-| Line items via JSON hidden input | Dynamic arrays can't cleanly use FormData |
-| Catalog dropdown closes on backdrop click | Fixed `z-20` overlay behind `z-30` dropdown |
-| Client-side jsPDF | No server-side PDF complexity |
-| `line_total` as generated column | `quantity * unit_price` in Postgres |
-| Invoice delete = draft only | Sent/paid = financial records |
-| Payments update invoice directly | Simpler than triggers |
+| `proxy.ts` not `middleware.ts` | Next.js 16 convention |
+| `params` is `Promise<{id}>` | Always `await params` in server pages |
+| Line items via JSON hidden input | Dynamic arrays can't use FormData cleanly |
+| Client-side jsPDF | No server PDF complexity |
+| Voice: Web Speech API | Chrome/Edge — no backend needed |
+| SpeechRecognition typed as `any` | Browser Speech types not in default tsconfig lib |
+| VoiceButton renders null if unsupported | Progressive enhancement — no broken UI in Firefox |
+| Payments update invoice directly | Simpler than Postgres triggers |
 | Soft delete everywhere | Preserves history |
 | Zod v4: `z.enum([...] as const, { error })` | Breaking change from Zod v3 |
-| Voice: Web Speech API | Chrome/Edge only — no backend needed |
 
 ---
 
@@ -133,29 +122,34 @@ Full SQL for all phases is in **`DATABASE_SCHEMA.md`**.
 
 ```
 KraveBackOffice/
+├── hooks/
+│   └── useVoiceRecognition.ts        # ✅ Phase 6
 ├── app/
 │   ├── actions/
-│   │   ├── customers.ts       # ✅ Phase 1
-│   │   ├── inventory.ts       # ✅ Phase 2
-│   │   ├── invoices.ts        # ✅ Phase 3
-│   │   ├── payments.ts        # ✅ Phase 4
-│   │   └── catalogItems.ts    # ✅ Items Catalog
+│   │   ├── customers.ts              # ✅ Phase 1
+│   │   ├── inventory.ts              # ✅ Phase 2
+│   │   ├── invoices.ts               # ✅ Phase 3
+│   │   ├── payments.ts               # ✅ Phase 4
+│   │   └── catalogItems.ts           # ✅ Items
 │   └── (dashboard)/
-│       ├── dashboard/page.tsx            # ✅ Phase 5 — live KPIs + chart
-│       ├── customers/page.tsx            # ✅ Phase 1
-│       ├── inventory/page.tsx            # ✅ Phase 2
-│       ├── items/page.tsx                # ✅ Items Catalog
-│       ├── invoices/{page,new,[id]}      # ✅ Phase 3
-│       ├── receivables/page.tsx          # ✅ Phase 4
-│       ├── voice/page.tsx                # ← Phase 6
-│       └── settings/page.tsx            # ← Phase 8
+│       ├── layout.tsx                # ✅ VoiceButton in header
+│       ├── dashboard/page.tsx        # ✅ Phase 5
+│       ├── customers/page.tsx        # ✅ Phase 1
+│       ├── inventory/page.tsx        # ✅ Phase 2
+│       ├── items/page.tsx            # ✅ Items Catalog
+│       ├── invoices/ (3 pages)       # ✅ Phase 3
+│       ├── receivables/page.tsx      # ✅ Phase 4
+│       ├── voice/page.tsx            # ✅ Phase 6
+│       ├── settings/page.tsx         # ← Phase 8
+│       └── api/telegram/webhook/     # ← Phase 7
 ├── components/
-│   ├── dashboard/RevenueChart.tsx       # ✅ Phase 5
-│   ├── customers/ (3 files)             # ✅ Phase 1
-│   ├── inventory/ (4 files)             # ✅ Phase 2
-│   ├── items/ (2 files)                 # ✅ Items Catalog
-│   ├── invoices/ (3 files)              # ✅ Phase 3
-│   └── receivables/ (2 files)           # ✅ Phase 4
+│   ├── voice/ (3 files)              # ✅ Phase 6
+│   ├── dashboard/RevenueChart.tsx    # ✅ Phase 5
+│   ├── customers/ (3 files)          # ✅ Phase 1
+│   ├── inventory/ (4 files)          # ✅ Phase 2
+│   ├── items/ (2 files)              # ✅ Items
+│   ├── invoices/ (3 files)           # ✅ Phase 3
+│   └── receivables/ (2 files)        # ✅ Phase 4
 └── lib/supabase/
     ├── client.ts
     └── server.ts
@@ -163,4 +157,4 @@ KraveBackOffice/
 
 ---
 
-*Last updated: 2026-06-07 | Items Catalog complete — Phase 6 Voice Control next*
+*Last updated: 2026-06-07 | Phase 6 — Voice Control complete. Phase 7 (Telegram Bot) next.*
