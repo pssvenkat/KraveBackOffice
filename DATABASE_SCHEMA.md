@@ -19,10 +19,10 @@
 
 | Table | Phase | Status |
 |---|---|---|
-| `customers` | Phase 1 | 🔄 Run SQL below |
-| `inventory_categories` | Phase 2 | ⬜ Not created |
-| `inventory_items` | Phase 2 | ⬜ Not created |
-| `inventory_transactions` | Phase 2 | ⬜ Not created |
+| `customers` | Phase 1 | ✅ Created |
+| `inventory_categories` | Phase 2 | 🔄 Run SQL below |
+| `inventory_items` | Phase 2 | 🔄 Run SQL below |
+| `inventory_transactions` | Phase 2 | 🔄 Run SQL below |
 | `invoices` | Phase 3 | ⬜ Not created |
 | `invoice_items` | Phase 3 | ⬜ Not created |
 | `payments` | Phase 4 | ⬜ Not created |

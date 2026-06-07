@@ -1,28 +1,69 @@
 import type { Metadata } from 'next'
-import { Package, Plus } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import InventoryClient from '@/components/inventory/InventoryClient'
 
 export const metadata: Metadata = { title: 'Inventory' }
 
-export default function InventoryPage() {
-  return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight">Inventory</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Track seeds, trays, and packing materials</p>
+export default async function InventoryPage() {
+  const supabase = await createClient()
+
+  const [{ data: categories, error: catErr }, { data: items, error: itemErr }] =
+    await Promise.all([
+      supabase
+        .from('inventory_categories')
+        .select('id, name, icon')
+        .order('name'),
+      supabase
+        .from('inventory_items')
+        .select('id, name, category_id, unit, quantity, reorder_level, cost_per_unit, is_active, inventory_categories(name, icon)')
+        .eq('is_active', true)
+        .order('name'),
+    ])
+
+  const tablesMissing =
+    catErr?.message.includes('relation') || itemErr?.message.includes('relation')
+
+  if (tablesMissing) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6">
+        <h1 className="text-2xl font-bold text-slate-100 tracking-tight">Inventory</h1>
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 text-sm text-amber-300 space-y-3">
+          <p className="font-semibold">⚠️ Inventory tables not set up yet</p>
+          <p className="text-amber-400/80">
+            Run the <strong>Phase 2</strong> SQL from <code className="bg-[#0a0f1a] px-1.5 py-0.5 rounded text-xs">DATABASE_SCHEMA.md</code> in your{' '}
+            <a href="https://supabase.com/dashboard/project/eostzwmrakhfbbehytaw/sql/new" target="_blank" rel="noreferrer" className="underline hover:text-amber-200">
+              Supabase SQL Editor
+            </a>.
+          </p>
         </div>
-        <button
-          id="btn-add-item"
-          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-green-500/25 transition-all"
-        >
-          <Plus className="w-4 h-4" /> Add Item
-        </button>
       </div>
-      <div className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-12 flex flex-col items-center justify-center text-center">
-        <Package className="w-12 h-12 text-slate-700 mb-4" />
-        <p className="text-base font-semibold text-slate-400">No inventory items yet</p>
-        <p className="text-sm text-slate-600 mt-1">Coming in Phase 2 — Inventory Management</p>
+    )
+  }
+
+  if (catErr || itemErr) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6">
+        <h1 className="text-2xl font-bold text-slate-100 tracking-tight">Inventory</h1>
+        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 text-sm text-red-400">
+          {catErr?.message || itemErr?.message}
+        </div>
       </div>
+    )
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-4">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-100 tracking-tight">Inventory</h1>
+        <p className="text-sm text-slate-500 mt-0.5">
+          Track seeds, trays, and packing materials — get alerted when stock runs low
+        </p>
+      </div>
+
+      <InventoryClient
+        categories={categories ?? []}
+        items={(items ?? []) as any}
+      />
     </div>
   )
 }
