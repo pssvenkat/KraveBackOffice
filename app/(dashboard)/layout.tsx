@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
+import VoiceButton from '@/components/voice/VoiceButton'
 
 export default async function DashboardLayout({
   children,
@@ -24,6 +25,9 @@ export default async function DashboardLayout({
         <header className="h-14 border-b border-[#1e2d45] bg-[#111827]/50 backdrop-blur-sm flex items-center px-6 shrink-0 sticky top-0 z-10">
           <div className="flex-1" />
           <div className="flex items-center gap-3">
+            {/* Voice mic button — client component, hidden if browser unsupported */}
+            <VoiceButton />
+            <div className="w-px h-5 bg-[#1e2d45]" />
             <div className="text-right hidden sm:block">
               <p className="text-xs font-medium text-slate-300 leading-tight">{user.email}</p>
               <p className="text-xs text-slate-600">Administrator</p>
@@ -42,3 +46,4 @@ export default async function DashboardLayout({
     </div>
   )
 }
+
