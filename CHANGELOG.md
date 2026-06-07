@@ -6,6 +6,27 @@ Types: `feat` · `fix` · `docs` · `style` · `refactor` · `chore`
 
 ---
 
+## [0.6.0] — 2026-06-07 · Phase 5: Dashboard & Analytics
+
+### feat
+- `app/(dashboard)/dashboard/page.tsx` — Fully wired to live Supabase data
+  - 6 parallel queries via `Promise.all` (revenue, outstanding, overdue, customers, low-stock, recent invoices)
+  - Revenue this month (paid invoices only)
+  - Total outstanding (sent + partial invoices)
+  - Overdue count (past due date) — KPI turns red when > 0
+  - Active customer count
+  - Low-stock items (quantity ≤ reorder_level)
+  - Recent 5 invoices with status dot
+  - 6-month revenue data for chart
+- `components/dashboard/RevenueChart.tsx` — Recharts BarChart
+  - Last 6 months, one bar per month
+  - Current month highlighted bright green
+  - Peak month highlighted with stronger gradient
+  - Custom tooltip with exact INR amount
+  - Empty state when no paid invoices
+
+---
+
 ## [0.5.0] — 2026-06-07 · Phase 4: Receivables & Payments
 
 ### feat

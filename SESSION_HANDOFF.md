@@ -6,54 +6,46 @@
 
 ## Last Completed
 
-- **Phase 4: Receivables & Payments** — fully built, clean build, pushed to GitHub, deploying to Vercel
-  - `app/actions/payments.ts` — `recordPayment` with overpayment guard, auto invoice status update
-  - `components/receivables/RecordPaymentModal.tsx` — UPI/Cash/Bank/Cheque/Other, reference field
-  - `components/receivables/ReceivablesClient.tsx` — Aging KPI cards, filter tabs, overdue detection
-  - `app/(dashboard)/receivables/page.tsx` — Server page, sent/partial invoices ordered by due date
+- **Phase 5: Dashboard & Analytics** — live data, Recharts chart, clean build, deployed
+  - 6 parallel Supabase queries via `Promise.all`
+  - KPI cards: Revenue this month, Outstanding, Overdue (red when >0), Active Customers
+  - `RevenueChart`: Recharts BarChart, last 6 months, gradient fills, current month highlighted
+  - Low Stock panel: live items at/below reorder level with category icons
+  - Recent Invoices panel: last 5 with status dot + amount
 
-- Phase 3: Invoice Generation ✅ — `KM-YYYY-NNN`, PDF, status workflow
-- Phase 2: Inventory Management ✅ — 3 tabs, stock adjust, low-stock alerts
+- Phase 4: Receivables & Payments ✅
+- Phase 3: Invoice Generation ✅
+- Phase 2: Inventory Management ✅
 - Phase 1: Customer Management ✅
 - Phase 0: Infrastructure ✅
 
 ---
 
-## ⚠️ ACTION REQUIRED — Run Payments SQL in Supabase
+## ⚠️ PENDING SQL — Run if not already done
 
-Go to **[Supabase SQL Editor](https://supabase.com/dashboard/project/eostzwmrakhfbbehytaw/sql/new)** and run:
+All 4 SQL blocks must be run in Supabase (in order):
+1. **Phase 1** — `customers` table
+2. **Phase 2** — `inventory_categories`, `inventory_items`, `inventory_transactions`
+3. **Phase 3** — `invoices`, `invoice_items`
+4. **Phase 4** — `payments`
 
-```sql
-create table payments (
-  id              uuid primary key default gen_random_uuid(),
-  invoice_id      uuid not null references invoices(id) on delete cascade,
-  amount          numeric(12,2) not null,
-  payment_method  text not null check (payment_method in ('cash','upi','bank_transfer','cheque','other')),
-  reference       text,
-  payment_date    date not null,
-  notes           text,
-  created_at      timestamptz not null default now()
-);
-
-alter table payments enable row level security;
-create policy "Authenticated read/write" on payments
-  for all using (auth.role() = 'authenticated');
-```
+Full SQL for each is in **`DATABASE_SCHEMA.md`** and in each phase's SESSION_HANDOFF entry.
 
 ---
 
 ## Next Task
 
-**Phase 5 — Dashboard & Analytics**
+**Phase 6 — Voice Control (Web Speech API)**
 
-Wire up all KPI cards with live Supabase data + Recharts charts:
-- Total revenue (this month)
-- Outstanding receivables
-- Active customers count
-- Low-stock items count
-- Monthly revenue bar chart (last 6 months)
-- Recent invoices list (last 5)
-- Low stock alert list
+- Floating mic button in app header (Chrome/Edge only)
+- Web Speech API `SpeechRecognition` integration
+- NLP command parser (regex/keyword matching):
+  - `"add 500g sunflower seeds"` → adjustStock
+  - `"show low stock"` → navigate to inventory
+  - `"new invoice for [customer]"` → navigate to /invoices/new
+  - `"outstanding balance"` → navigate to /receivables
+- Confirmation toast after command executes
+- Voice command help panel (slash command list)
 
 ---
 
@@ -64,8 +56,8 @@ Wire up all KPI cards with live Supabase data + Recharts charts:
 3. ✅ Phase 2 — Inventory Management
 4. ✅ Phase 3 — Invoice Generation
 5. ✅ Phase 4 — Receivables & Payments
-6. 🔄 **Phase 5 — Dashboard & Analytics** ← next
-7. Phase 6 — Voice Control (Web Speech API)
+6. ✅ Phase 5 — Dashboard & Analytics
+7. 🔄 **Phase 6 — Voice Control** ← next
 8. Phase 7 — Telegram Bot
 9. Phase 8 — Polish & Hardening
 
@@ -93,14 +85,13 @@ Wire up all KPI cards with live Supabase data + Recharts charts:
 | `params` is `Promise<{id}>` | Always `await params` in server pages + `generateMetadata` |
 | Line items via JSON hidden input | Dynamic arrays can't cleanly use FormData |
 | Client-side jsPDF | No server-side PDF complexity |
-| `line_total` as generated column | `quantity * unit_price` computed in Postgres |
+| `line_total` as generated column | `quantity * unit_price` in Postgres |
 | Invoice delete = draft only | Sent/paid = financial records |
-| Payments update invoice directly | Simpler than triggers; avoids RLS trigger edge cases |
+| Payments update invoice directly | Simpler than triggers |
 | Soft delete customers/inventory | Preserves history |
 | Zod v4: `z.enum([...] as const, { error })` | Breaking change from Zod v3 |
+| Voice: Web Speech API | Chrome/Edge only — no backend needed |
 | Tailwind CSS v4 | `@import "tailwindcss"` syntax |
-| INR (₹), GST 5% optional | India market |
-| Invoice format `KM-YYYY-NNN` | Sequential per year |
 
 ---
 
@@ -115,16 +106,15 @@ KraveBackOffice/
 │   │   ├── invoices.ts      # ✅ Phase 3
 │   │   └── payments.ts      # ✅ Phase 4
 │   └── (dashboard)/
-│       ├── dashboard/page.tsx           # ← Phase 5 (live KPIs)
+│       ├── dashboard/page.tsx           # ✅ Phase 5 — live KPIs + chart
 │       ├── customers/page.tsx           # ✅ Phase 1
 │       ├── inventory/page.tsx           # ✅ Phase 2
-│       ├── invoices/page.tsx            # ✅ Phase 3
-│       ├── invoices/new/page.tsx        # ✅ Phase 3
-│       ├── invoices/[id]/page.tsx       # ✅ Phase 3
+│       ├── invoices/{page,new,[id]}     # ✅ Phase 3
 │       ├── receivables/page.tsx         # ✅ Phase 4
 │       ├── voice/page.tsx               # ← Phase 6
 │       └── settings/page.tsx           # ← Phase 8
 ├── components/
+│   ├── dashboard/RevenueChart.tsx      # ✅ Phase 5
 │   ├── customers/ (3 files)            # ✅ Phase 1
 │   ├── inventory/ (4 files)            # ✅ Phase 2
 │   ├── invoices/ (3 files)             # ✅ Phase 3
@@ -136,4 +126,4 @@ KraveBackOffice/
 
 ---
 
-*Last updated: 2026-06-07 | Session: Phase 4 — Receivables & Payments complete*
+*Last updated: 2026-06-07 | Session: Phase 5 — Dashboard & Analytics complete*

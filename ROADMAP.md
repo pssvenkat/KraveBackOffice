@@ -238,8 +238,8 @@
 | 2 — Inventory Management | ✅ Complete | Auto-deployed via Vercel |
 | 3 — Invoice Generation | ✅ Complete | Auto-deployed via Vercel |
 | 4 — Receivables & Payments | ✅ Complete | Auto-deployed via Vercel |
-| 5 — Dashboard & Analytics | 🔄 Up next | — |
-| 6 — Voice Control (Web Speech) | ⬜ Not started | — |
+| 5 — Dashboard & Analytics | ✅ Complete | Auto-deployed via Vercel |
+| 6 — Voice Control (Web Speech) | 🔄 Up next | — |
 | 7 — Telegram Bot | ⬜ Not started | — |
 | 8 — Polish & Hardening | ⬜ Not started | — |
 
