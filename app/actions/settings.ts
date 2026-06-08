@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 
 export type SettingsFormState = {
   errors?: Record<string, string[]>
@@ -76,5 +77,54 @@ export async function getSettings(): Promise<Record<string, string>> {
     return Object.fromEntries(data.map(({ key, value }) => [key, value]))
   } catch {
     return {}
+  }
+}
+
+// ── Logo Upload ──────────────────────────────────────────────────────────────
+
+export async function uploadLogo(
+  formData: FormData
+): Promise<{ url?: string; error?: string }> {
+  try {
+    const supabase = createServiceClient()
+
+    const file = formData.get('logo') as File
+    if (!file || file.size === 0) return { error: 'No file selected' }
+    if (!file.type.startsWith('image/')) return { error: 'Must be an image file' }
+    if (file.size > 2 * 1024 * 1024) return { error: 'Image must be under 2MB' }
+
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? 'png'
+    if (!['png', 'jpg', 'jpeg', 'webp', 'svg'].includes(ext))
+      return { error: 'Allowed formats: PNG, JPG, WebP, SVG' }
+
+    const buffer = await file.arrayBuffer()
+
+    // Create bucket if it doesn't exist yet
+    await supabase.storage.createBucket('logos', { public: true }).catch(() => {})
+
+    // Always store as logo.<ext> — overwrite on update (upsert)
+    const { error: uploadErr } = await supabase.storage
+      .from('logos')
+      .upload(`logo.${ext}`, buffer, { contentType: file.type, upsert: true })
+
+    if (uploadErr) return { error: uploadErr.message }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('logos')
+      .getPublicUrl(`logo.${ext}`)
+
+    // Append cache-buster so browsers pick up the new image
+    const url = `${publicUrl}?v=${Date.now()}`
+
+    // Persist URL in settings
+    await supabase
+      .from('app_settings')
+      .upsert({ key: 'logo_url', value: url }, { onConflict: 'key' })
+
+    revalidatePath('/', 'layout')
+    revalidatePath('/settings')
+    return { url }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Upload failed' }
   }
 }

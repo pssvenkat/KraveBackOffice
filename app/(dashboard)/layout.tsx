@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { getSettings } from '@/app/actions/settings'
 import Sidebar from '@/components/Sidebar'
 import VoiceButton from '@/components/voice/VoiceButton'
 import MobileSidebar from '@/components/layout/MobileSidebar'
@@ -16,16 +17,20 @@ export default async function DashboardLayout({
 
   if (!user) redirect('/login')
 
+  // Fetch logo URL for sidebar — returns '' if table not set up yet
+  const settings = await getSettings()
+  const logoUrl = settings.logo_url ?? null
+
   return (
     <div className="flex min-h-screen">
       {/* Desktop sidebar — always visible on lg+ */}
       <div className="hidden lg:block shrink-0">
-        <Sidebar />
+        <Sidebar logoUrl={logoUrl} />
       </div>
 
       {/* Mobile sidebar — drawer, hamburger in header */}
       <MobileSidebar>
-        <Sidebar />
+        <Sidebar logoUrl={logoUrl} />
       </MobileSidebar>
 
       {/* Main content */}

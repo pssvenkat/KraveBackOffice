@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { getSettings } from '@/app/actions/settings'
 import SettingsForm from '@/components/settings/SettingsForm'
+import LogoUpload from '@/components/settings/LogoUpload'
 
 export const metadata: Metadata = { title: 'Settings' }
 
@@ -13,7 +14,7 @@ export default async function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-100 tracking-tight">Settings</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          Business info, bank details, and invoice configuration
+          Business info, logo, bank details, and invoice configuration
         </p>
       </div>
 
@@ -36,6 +37,9 @@ export default async function SettingsPage() {
           </p>
         </div>
       )}
+
+      {/* Logo upload — always shown even if other settings aren't ready */}
+      <LogoUpload currentLogoUrl={settings.logo_url} />
 
       <SettingsForm settings={settings} />
     </div>

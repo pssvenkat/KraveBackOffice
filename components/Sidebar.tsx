@@ -31,7 +31,7 @@ const BOTTOM_ITEMS = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ logoUrl }: { logoUrl?: string | null }) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -51,8 +51,19 @@ export default function Sidebar() {
     <aside className="flex flex-col w-60 min-h-screen bg-[#111827] border-r border-[#1e2d45] shrink-0">
       {/* Brand */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-[#1e2d45]">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/25 shrink-0">
-          <Leaf className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
+        {/* Logo — uploaded image or leaf icon fallback */}
+        <div className="w-9 h-9 rounded-xl shrink-0 overflow-hidden">
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt="Business logo"
+              className="w-full h-full object-contain bg-white/5"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/25">
+              <Leaf className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
+            </div>
+          )}
         </div>
         <div className="min-w-0">
           <p className="text-sm font-bold text-slate-100 truncate leading-tight">Krave Microgreens</p>

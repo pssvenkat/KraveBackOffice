@@ -49,7 +49,7 @@ const fmt = (n: number) =>
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 
-export default function InvoiceDetail({ invoice }: { invoice: Invoice }) {
+export default function InvoiceDetail({ invoice, logoUrl }: { invoice: Invoice; logoUrl?: string | null }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -73,7 +73,7 @@ export default function InvoiceDetail({ invoice }: { invoice: Invoice }) {
 
   function downloadPDF() {
     // Dynamic import so jsPDF only loads client-side
-    import('jspdf').then(({ default: jsPDF }) => {
+    import('jspdf').then(async ({ default: jsPDF }) => {
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
       const pageW = 210
       const margin = 20
@@ -83,14 +83,50 @@ export default function InvoiceDetail({ invoice }: { invoice: Invoice }) {
       // Header — Brand
       doc.setFillColor(17, 24, 39)
       doc.rect(0, 0, pageW, 40, 'F')
-      doc.setTextColor(34, 197, 94)
-      doc.setFontSize(20)
-      doc.setFont('helvetica', 'bold')
-      doc.text('KRAVE MICROGREENS', margin, y + 8)
-      doc.setFontSize(8)
-      doc.setTextColor(148, 163, 184)
-      doc.setFont('helvetica', 'normal')
-      doc.text('Fresh Microgreens | Quality You Can Taste', margin, y + 15)
+
+      // Logo image (if uploaded) or text brand
+      if (logoUrl) {
+        try {
+          const resp = await fetch(logoUrl)
+          const blob = await resp.blob()
+          const base64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result as string)
+            reader.readAsDataURL(blob)
+          })
+          const imgType = blob.type.includes('png') ? 'PNG'
+            : blob.type.includes('svg') ? 'PNG' : 'JPEG'
+          doc.addImage(base64, imgType, margin, y, 20, 20)
+          // Brand text to the right of logo
+          doc.setTextColor(34, 197, 94)
+          doc.setFontSize(16)
+          doc.setFont('helvetica', 'bold')
+          doc.text('KRAVE MICROGREENS', margin + 24, y + 8)
+          doc.setFontSize(8)
+          doc.setTextColor(148, 163, 184)
+          doc.setFont('helvetica', 'normal')
+          doc.text('Fresh Microgreens | Quality You Can Taste', margin + 24, y + 15)
+        } catch {
+          // Fallback to text-only if logo fetch fails
+          doc.setTextColor(34, 197, 94)
+          doc.setFontSize(20)
+          doc.setFont('helvetica', 'bold')
+          doc.text('KRAVE MICROGREENS', margin, y + 8)
+          doc.setFontSize(8)
+          doc.setTextColor(148, 163, 184)
+          doc.setFont('helvetica', 'normal')
+          doc.text('Fresh Microgreens | Quality You Can Taste', margin, y + 15)
+        }
+      } else {
+        doc.setTextColor(34, 197, 94)
+        doc.setFontSize(20)
+        doc.setFont('helvetica', 'bold')
+        doc.text('KRAVE MICROGREENS', margin, y + 8)
+        doc.setFontSize(8)
+        doc.setTextColor(148, 163, 184)
+        doc.setFont('helvetica', 'normal')
+        doc.text('Fresh Microgreens | Quality You Can Taste', margin, y + 15)
+      }
 
       // Invoice badge
       doc.setFillColor(34, 197, 94)
