@@ -13,17 +13,26 @@ export default async function ItemsPage() {
     .eq('is_active', true)
     .order('name')
 
-  if (error?.message.includes('relation')) {
+  // Table missing or any other DB error — show setup banner, don't crash
+  if (error) {
     return (
       <div className="max-w-7xl mx-auto space-y-6">
         <h1 className="text-2xl font-bold text-slate-100 tracking-tight">Items Catalog</h1>
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 text-sm text-amber-300 space-y-2">
-          <p className="font-semibold">⚠️ Catalog table not set up yet</p>
-          <p className="text-amber-400/80">
-            Run the <strong>catalog_items</strong> SQL from{' '}
-            <code className="bg-[#0a0f1a] px-1.5 py-0.5 rounded text-xs">DATABASE_SCHEMA.md</code>{' '}
-            in your Supabase SQL Editor.
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 space-y-2">
+          <p className="text-sm font-semibold text-amber-300">⚠️ Items table not set up yet</p>
+          <p className="text-xs text-amber-400/80">
+            Run the <code className="bg-[#0a0f1a] px-1.5 py-0.5 rounded">catalog_items</code> SQL
+            from <code className="bg-[#0a0f1a] px-1.5 py-0.5 rounded">DATABASE_SCHEMA.md</code> in your{' '}
+            <a
+              href="https://supabase.com/dashboard/project/eostzwmrakhfbbehytaw/sql/new"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-amber-300"
+            >
+              Supabase SQL Editor →
+            </a>
           </p>
+          <p className="text-xs text-slate-600 font-mono mt-2">DB error: {error.message}</p>
         </div>
       </div>
     )
