@@ -7,6 +7,7 @@ import {
   createCatalogItem, updateCatalogItem,
   type CatalogItemFormState,
 } from '@/app/actions/catalogItems'
+import { UNITS } from '@/lib/catalog/units'
 
 type CatalogItem = {
   id: string

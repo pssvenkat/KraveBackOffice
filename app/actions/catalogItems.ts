@@ -3,17 +3,13 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { UNITS } from '@/lib/catalog/units'
 
 export type CatalogItemFormState = {
   errors?: Record<string, string[]>
   message?: string | null
   success?: boolean
 }
-
-const UNITS = [
-  'g', 'kg', 'pcs', 'bunch', 'tray', 'box', 'bag',
-  'packet', 'roll', 'ml', 'litre', 'hr', 'service',
-] as const
 
 const ItemSchema = z.object({
   name: z.string().min(1, 'Name is required').max(150),
@@ -137,4 +133,4 @@ export async function deleteCatalogItem(id: string): Promise<{ error?: string }>
   }
 }
 
-export { UNITS }
+
