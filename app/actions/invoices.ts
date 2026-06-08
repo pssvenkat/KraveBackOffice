@@ -28,6 +28,8 @@ const InvoiceSchema = z.object({
   issue_date: z.string().min(1, 'Issue date is required'),
   due_date: z.string().optional(),
   apply_gst: z.boolean().default(false),
+  discount_type: z.enum(['none', 'pct', 'flat']).default('none'),
+  discount_value: z.coerce.number().min(0).default(0),
   notes: z.string().max(500).optional(),
   items: z.string().min(1, 'Add at least one line item'),
 })
@@ -68,6 +70,8 @@ export async function createInvoice(
     issue_date: formData.get('issue_date'),
     due_date: formData.get('due_date') || undefined,
     apply_gst: applyGst,
+    discount_type: formData.get('discount_type') || 'none',
+    discount_value: formData.get('discount_value') || 0,
     notes: formData.get('notes') || undefined,
     items: formData.get('items'),
   })
@@ -87,9 +91,15 @@ export async function createInvoice(
 
   // Compute totals
   const subtotal = lineItems.reduce((sum, i) => sum + i.quantity * i.unit_price, 0)
+  const { discount_type, discount_value } = validated.data
+  const discountAmount =
+    discount_type === 'pct' ? Math.min(subtotal, (subtotal * discount_value) / 100)
+    : discount_type === 'flat' ? Math.min(subtotal, discount_value)
+    : 0
+  const netAmount = subtotal - discountAmount
   const gstRate = 5
-  const gstAmount = applyGst ? Math.round(subtotal * gstRate) / 100 : 0
-  const total = subtotal + gstAmount
+  const gstAmount = applyGst ? Math.round(netAmount * gstRate) / 100 : 0
+  const total = netAmount + gstAmount
 
   const invoiceNumber = await nextInvoiceNumber(supabase)
 
@@ -104,6 +114,9 @@ export async function createInvoice(
       gst_rate: gstRate,
       gst_amount: gstAmount,
       subtotal,
+      discount_type: validated.data.discount_type,
+      discount_value: validated.data.discount_value,
+      discount_amount: discountAmount,
       total,
       notes: validated.data.notes || null,
       status: 'draft',

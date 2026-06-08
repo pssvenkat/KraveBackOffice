@@ -23,6 +23,9 @@ type Invoice = {
   due_date: string | null
   status: string
   subtotal: number
+  discount_type: string | null
+  discount_value: number | null
+  discount_amount: number | null
   apply_gst: boolean
   gst_rate: number
   gst_amount: number
@@ -177,6 +180,16 @@ export default function InvoiceDetail({ invoice }: { invoice: Invoice }) {
       doc.setTextColor(80, 80, 80)
       doc.text('Subtotal', totalsX + 20, y)
       doc.text(`₹${fmt(invoice.subtotal)}`, totalsValX, y, { align: 'right' })
+      if ((invoice.discount_amount ?? 0) > 0) {
+        y += 6
+        const discLabel = invoice.discount_type === 'pct'
+          ? `Discount (${invoice.discount_value}%)`
+          : 'Discount'
+        doc.setTextColor(34, 197, 94)
+        doc.text(discLabel, totalsX + 20, y)
+        doc.text(`-₹${fmt(invoice.discount_amount ?? 0)}`, totalsValX, y, { align: 'right' })
+        doc.setTextColor(80, 80, 80)
+      }
       if (invoice.apply_gst) {
         y += 6
         doc.text(`GST (${invoice.gst_rate}%)`, totalsX + 20, y)
@@ -349,6 +362,15 @@ export default function InvoiceDetail({ invoice }: { invoice: Invoice }) {
               <span>Subtotal</span>
               <span className="font-mono">₹{fmt(invoice.subtotal)}</span>
             </div>
+            {(invoice.discount_amount ?? 0) > 0 && (
+              <div className="flex justify-between text-sm text-green-500">
+                <span>
+                  Discount
+                  {invoice.discount_type === 'pct' && ` (${invoice.discount_value}%)`}
+                </span>
+                <span className="font-mono">−₹{fmt(invoice.discount_amount ?? 0)}</span>
+              </div>
+            )}
             {invoice.apply_gst && (
               <div className="flex justify-between text-sm text-slate-400">
                 <span>GST ({invoice.gst_rate}%)</span>

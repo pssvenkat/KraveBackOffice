@@ -45,14 +45,21 @@ export default function InvoiceForm({ customers, catalogItems }: Props) {
   const router = useRouter()
   const [items, setItems] = useState<LineItemInput[]>([{ ...EMPTY_ITEM }])
   const [applyGst, setApplyGst] = useState(false)
+  const [discountType, setDiscountType] = useState<'none' | 'pct' | 'flat'>('none')
+  const [discountValue, setDiscountValue] = useState<number>(0)
   // Track which row has the catalog dropdown open
   const [openDropdown, setOpenDropdown] = useState<number | null>(null)
   // Track catalog search per row
   const [catalogSearch, setCatalogSearch] = useState<Record<number, string>>({})
 
   const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0)
-  const gstAmount = applyGst ? subtotal * 0.05 : 0
-  const total = subtotal + gstAmount
+  const discountAmount =
+    discountType === 'pct' ? Math.min(subtotal, (subtotal * discountValue) / 100)
+    : discountType === 'flat' ? Math.min(subtotal, discountValue)
+    : 0
+  const netAmount = subtotal - discountAmount
+  const gstAmount = applyGst ? netAmount * 0.05 : 0
+  const total = netAmount + gstAmount
 
   function addItem() { setItems((p) => [...p, { ...EMPTY_ITEM }]) }
   function removeItem(idx: number) { setItems((p) => p.length === 1 ? p : p.filter((_, i) => i !== idx)) }
@@ -77,6 +84,8 @@ export default function InvoiceForm({ customers, catalogItems }: Props) {
   return (
     <form action={formAction} className="space-y-6">
       <input type="hidden" name="items" value={JSON.stringify(items)} />
+      <input type="hidden" name="discount_type" value={discountType} />
+      <input type="hidden" name="discount_value" value={discountValue} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* ── LEFT ── */}
@@ -288,7 +297,7 @@ export default function InvoiceForm({ customers, catalogItems }: Props) {
             <label className="flex items-center justify-between cursor-pointer">
               <div>
                 <p className="text-sm font-medium text-slate-300">Apply GST</p>
-                <p className="text-xs text-slate-600">5% GST on subtotal</p>
+                <p className="text-xs text-slate-600">5% GST on net amount</p>
               </div>
               <div className="relative">
                 <input id="toggle-gst" name="apply_gst" type="checkbox" checked={applyGst} onChange={(e) => setApplyGst(e.target.checked)} className="sr-only peer" />
@@ -297,12 +306,64 @@ export default function InvoiceForm({ customers, catalogItems }: Props) {
               </div>
             </label>
 
+            {/* Discount */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-slate-300">Discount</p>
+                <div className="flex rounded-lg overflow-hidden border border-[#1e2d45] text-xs font-semibold">
+                  {(['none', 'pct', 'flat'] as const).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => { setDiscountType(t); if (t === 'none') setDiscountValue(0) }}
+                      className={`px-3 py-1.5 transition-all ${
+                        discountType === t
+                          ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                          : 'bg-[#0a0f1a] text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      {t === 'none' ? 'None' : t === 'pct' ? '%' : '₹'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {discountType !== 'none' && (
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    max={discountType === 'pct' ? 100 : undefined}
+                    step={discountType === 'pct' ? '0.1' : '1'}
+                    value={discountValue || ''}
+                    onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
+                    placeholder={discountType === 'pct' ? 'e.g. 10' : 'e.g. 50'}
+                    className="w-full px-3.5 py-2 bg-[#0a0f1a] border border-[#1e2d45] rounded-xl text-slate-100 text-sm focus:outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/20 transition-all"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 pointer-events-none">
+                    {discountType === 'pct' ? '%' : '₹'}
+                  </span>
+                </div>
+              )}
+            </div>
+
             {/* Totals */}
             <div className="space-y-2 pt-2 border-t border-[#1e2d45]">
               <div className="flex justify-between text-sm text-slate-400">
                 <span>Subtotal</span>
                 <span className="font-mono">₹{fmt(subtotal)}</span>
               </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-sm text-green-500">
+                  <span>Discount {discountType === 'pct' ? `(${discountValue}%)` : ''}</span>
+                  <span className="font-mono">−₹{fmt(discountAmount)}</span>
+                </div>
+              )}
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-sm text-slate-400">
+                  <span>Net</span>
+                  <span className="font-mono">₹{fmt(netAmount)}</span>
+                </div>
+              )}
               {applyGst && (
                 <div className="flex justify-between text-sm text-slate-400">
                   <span>GST (5%)</span>

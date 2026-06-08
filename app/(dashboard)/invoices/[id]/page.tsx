@@ -24,7 +24,8 @@ export default async function InvoiceDetailPage({ params }: Props) {
     .from('invoices')
     .select(`
       id, invoice_number, issue_date, due_date, status,
-      subtotal, apply_gst, gst_rate, gst_amount, total, amount_paid, notes,
+      subtotal, discount_type, discount_value, discount_amount,
+      apply_gst, gst_rate, gst_amount, total, amount_paid, notes,
       customers(name, email, phone, address, city, gstin),
       invoice_items(id, description, unit, quantity, unit_price, line_total)
     `)
