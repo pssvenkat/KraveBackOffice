@@ -6,15 +6,13 @@
 
 ## Last Completed
 
-- **Phase 6: Voice Control** — Web Speech API, header mic button, command center page
-  - `hooks/useVoiceRecognition.ts` — SpeechRecognition lifecycle, en-IN, interim results, error handling
-  - `components/voice/VoiceCommandEngine.ts` — Regex command parser, 10 destinations, exported command list
-  - `components/voice/VoiceButton.tsx` — Header mic: pulse rings while listening, interim speech bubble, toast
-  - `components/voice/VoiceCommandCenter.tsx` — `/voice` page: large mic, history log, command reference
-  - `app/(dashboard)/layout.tsx` — VoiceButton added to sticky header (auto-hides in Firefox/Safari)
-  - **Fix**: SpeechRecognition typed as `any` (browser types not in default tsconfig lib)
+- **Phase 7: Telegram Bot** — webhook + 7 commands, clean build, deployed
+  - `lib/telegram/bot.ts` — `sendMessage`, MarkdownV2 `esc()`, `TelegramUpdate` type
+  - `lib/telegram/commands.ts` — 7 command handlers
+  - `app/api/telegram/webhook/route.ts` — POST handler, secret header validation
 
-- Items Catalog ✅ (bonus feature — per user request)
+- Phase 6: Voice Control ✅
+- Items Catalog ✅
 - Phase 5: Dashboard & Analytics ✅
 - Phase 4: Receivables & Payments ✅
 - Phase 3: Invoice Generation ✅
@@ -24,20 +22,38 @@
 
 ---
 
-## Voice Commands Reference
+## Telegram Bot Commands
 
-| Phrase | Action |
+| Command | Description |
 |---|---|
-| `"dashboard"` / `"home"` | Navigate to Dashboard |
-| `"customers"` | Navigate to Customers |
-| `"inventory"` / `"stock"` | Navigate to Inventory |
-| `"catalog"` / `"products"` | Navigate to Items Catalog |
-| `"new invoice"` / `"create invoice"` | Open New Invoice form |
-| `"invoices"` | Navigate to Invoices |
-| `"receivables"` / `"outstanding"` / `"unpaid"` | Navigate to Receivables |
-| `"low stock"` / `"running low"` | Navigate to Inventory |
-| `"settings"` | Navigate to Settings |
-| `"help"` / `"commands"` | Navigate to Voice page |
+| `/start` | Welcome message + full command menu |
+| `/help` | Show command list |
+| `/stock` | Low stock alerts (items at/below reorder level) |
+| `/outstanding` | Unpaid invoices with overdue flags + grand total |
+| `/revenue` | This month's paid invoice revenue |
+| `/addstock [name] [qty]` | Add inventory (partial name match, logs transaction) |
+| `/customers` | Active customer count |
+
+---
+
+## ⚠️ Telegram Setup Required (one-time)
+
+### Step 1 — Create bot
+1. Telegram → `@BotFather` → `/newbot` → copy **Bot Token**
+
+### Step 2 — Add Vercel env vars
+Go to [Vercel → Environment Variables](https://vercel.com/pssvenkat/kravebackoffice/settings/environment-variables):
+```
+TELEGRAM_BOT_TOKEN       = <token from BotFather>
+TELEGRAM_WEBHOOK_SECRET  = kravebot2024
+```
+Then **redeploy** (Vercel → Deployments → Redeploy latest).
+
+### Step 3 — Register webhook (run once in browser)
+```
+https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://kravebackoffice.vercel.app/api/telegram/webhook&secret_token=kravebot2024
+```
+Should return `{"ok":true,"description":"Webhook was set"}`
 
 ---
 
@@ -57,33 +73,23 @@ Full SQL in **`DATABASE_SCHEMA.md`**.
 
 ## Next Task
 
-**Phase 7 — Telegram Bot**
-
-- Webhook endpoint: `POST /api/telegram/webhook`
-- Bot commands:
-  - `/start` — greeting + menu
-  - `/stock` — list low stock items
-  - `/outstanding` — list unpaid invoices + totals
-  - `/addstock [item] [qty]` — quick stock adjustment
-  - `/revenue` — this month's revenue
-- Telegram Bot API via fetch (no heavy SDK)
-- Environment variable: `TELEGRAM_BOT_TOKEN`
-
 **Phase 8 — Polish & Hardening**
-- Loading skeletons
-- Error boundaries
-- Mobile responsive tweaks
-- SEO meta tags
+
+- Loading skeletons for all data-heavy pages (Dashboard, Invoices, Inventory, Receivables)
+- Error boundaries with friendly fallback UI
+- Mobile responsive tweaks (sidebar collapse / hamburger menu)
+- Global toast notifications system
+- Settings page (business name, GST number, bank details for invoices)
+- SEO: meta descriptions for all pages
 
 ---
 
 ## Next Tasks Queue
 
-1. ✅ Phase 0–5 complete
-2. ✅ Items Catalog
-3. ✅ Phase 6 — Voice Control
-4. 🔄 **Phase 7 — Telegram Bot** ← next
-5. Phase 8 — Polish & Hardening
+1. ✅ Phase 0–6 complete
+2. ✅ Items Catalog (bonus)
+3. ✅ Phase 7 — Telegram Bot
+4. 🔄 **Phase 8 — Polish & Hardening** ← next
 
 ---
 
@@ -107,12 +113,13 @@ Full SQL in **`DATABASE_SCHEMA.md`**.
 |---|---|
 | `proxy.ts` not `middleware.ts` | Next.js 16 convention |
 | `params` is `Promise<{id}>` | Always `await params` in server pages |
+| Telegram via raw fetch | No SDK dependency needed |
+| MarkdownV2 `esc()` helper | Telegram requires escaping `_ * [ ] ( ) ~ > # + - = \| { } . !` |
+| Webhook secret header | Protects against random POSTs to webhook URL |
+| `/stock` filters client-side | PostgREST can't compare two columns directly |
+| SpeechRecognition typed as `any` | Browser types not in default tsconfig lib |
+| Regex `[\s\S]*` not `.*s` | `s` flag (dotAll) requires ES2018 target |
 | Line items via JSON hidden input | Dynamic arrays can't use FormData cleanly |
-| Client-side jsPDF | No server PDF complexity |
-| Voice: Web Speech API | Chrome/Edge — no backend needed |
-| SpeechRecognition typed as `any` | Browser Speech types not in default tsconfig lib |
-| VoiceButton renders null if unsupported | Progressive enhancement — no broken UI in Firefox |
-| Payments update invoice directly | Simpler than Postgres triggers |
 | Soft delete everywhere | Preserves history |
 | Zod v4: `z.enum([...] as const, { error })` | Breaking change from Zod v3 |
 
@@ -123,38 +130,40 @@ Full SQL in **`DATABASE_SCHEMA.md`**.
 ```
 KraveBackOffice/
 ├── hooks/
-│   └── useVoiceRecognition.ts        # ✅ Phase 6
+│   └── useVoiceRecognition.ts         # ✅ Phase 6
+├── lib/
+│   ├── supabase/{client,server}.ts    # ✅ Phase 0
+│   └── telegram/
+│       ├── bot.ts                     # ✅ Phase 7
+│       └── commands.ts                # ✅ Phase 7
 ├── app/
+│   ├── api/telegram/webhook/route.ts  # ✅ Phase 7
 │   ├── actions/
-│   │   ├── customers.ts              # ✅ Phase 1
-│   │   ├── inventory.ts              # ✅ Phase 2
-│   │   ├── invoices.ts               # ✅ Phase 3
-│   │   ├── payments.ts               # ✅ Phase 4
-│   │   └── catalogItems.ts           # ✅ Items
+│   │   ├── customers.ts               # ✅ Phase 1
+│   │   ├── inventory.ts               # ✅ Phase 2
+│   │   ├── invoices.ts                # ✅ Phase 3
+│   │   ├── payments.ts                # ✅ Phase 4
+│   │   └── catalogItems.ts            # ✅ Items
 │   └── (dashboard)/
-│       ├── layout.tsx                # ✅ VoiceButton in header
-│       ├── dashboard/page.tsx        # ✅ Phase 5
-│       ├── customers/page.tsx        # ✅ Phase 1
-│       ├── inventory/page.tsx        # ✅ Phase 2
-│       ├── items/page.tsx            # ✅ Items Catalog
-│       ├── invoices/ (3 pages)       # ✅ Phase 3
-│       ├── receivables/page.tsx      # ✅ Phase 4
-│       ├── voice/page.tsx            # ✅ Phase 6
-│       ├── settings/page.tsx         # ← Phase 8
-│       └── api/telegram/webhook/     # ← Phase 7
-├── components/
-│   ├── voice/ (3 files)              # ✅ Phase 6
-│   ├── dashboard/RevenueChart.tsx    # ✅ Phase 5
-│   ├── customers/ (3 files)          # ✅ Phase 1
-│   ├── inventory/ (4 files)          # ✅ Phase 2
-│   ├── items/ (2 files)              # ✅ Items
-│   ├── invoices/ (3 files)           # ✅ Phase 3
-│   └── receivables/ (2 files)        # ✅ Phase 4
-└── lib/supabase/
-    ├── client.ts
-    └── server.ts
+│       ├── layout.tsx                 # ✅ VoiceButton in header
+│       ├── dashboard/page.tsx         # ✅ Phase 5
+│       ├── customers/page.tsx         # ✅ Phase 1
+│       ├── inventory/page.tsx         # ✅ Phase 2
+│       ├── items/page.tsx             # ✅ Items Catalog
+│       ├── invoices/ (3 pages)        # ✅ Phase 3
+│       ├── receivables/page.tsx       # ✅ Phase 4
+│       ├── voice/page.tsx             # ✅ Phase 6
+│       └── settings/page.tsx          # ← Phase 8
+└── components/
+    ├── voice/ (3 files)               # ✅ Phase 6
+    ├── dashboard/RevenueChart.tsx     # ✅ Phase 5
+    ├── customers/ (3 files)           # ✅ Phase 1
+    ├── inventory/ (4 files)           # ✅ Phase 2
+    ├── items/ (2 files)               # ✅ Items
+    ├── invoices/ (3 files)            # ✅ Phase 3
+    └── receivables/ (2 files)         # ✅ Phase 4
 ```
 
 ---
 
-*Last updated: 2026-06-07 | Phase 6 — Voice Control complete. Phase 7 (Telegram Bot) next.*
+*Last updated: 2026-06-08 | Phase 7 — Telegram Bot complete. Phase 8 (Polish) next.*
