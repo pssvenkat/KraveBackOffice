@@ -38,5 +38,5 @@ export default async function InvoiceDetailPage({ params }: Props) {
 
   if (error || !invoice) notFound()
 
-  return <InvoiceDetail invoice={invoice as any} logoUrl={settings.logo_url ?? null} />
+  return <InvoiceDetail invoice={invoice as any} logoUrl={settings.logo_url ?? null} settings={settings} />
 }

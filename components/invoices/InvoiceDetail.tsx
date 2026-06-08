@@ -49,7 +49,35 @@ const fmt = (n: number) =>
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 
-export default function InvoiceDetail({ invoice, logoUrl }: { invoice: Invoice; logoUrl?: string | null }) {
+function numberToWords(n: number): string {
+  if (n === 0) return 'INR Zero Rupees Only.'
+  const U = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+    'Seventeen', 'Eighteen', 'Nineteen']
+  const T = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+  function w(x: number): string {
+    if (x === 0) return ''
+    if (x < 20) return U[x] + ' '
+    if (x < 100) return T[Math.floor(x / 10)] + (x % 10 ? ' ' + U[x % 10] : '') + ' '
+    if (x < 1000) return U[Math.floor(x / 100)] + ' Hundred ' + w(x % 100)
+    if (x < 100000) return w(Math.floor(x / 1000)) + 'Thousand ' + w(x % 1000)
+    if (x < 10000000) return w(Math.floor(x / 100000)) + 'Lakh ' + w(x % 100000)
+    return w(Math.floor(x / 10000000)) + 'Crore ' + w(x % 10000000)
+  }
+  const rupees = Math.floor(n)
+  const paise  = Math.round((n - rupees) * 100)
+  let r = 'INR ' + w(rupees).trim().replace(/\s+/g, ' ') + ' Rupee' + (rupees !== 1 ? 's' : '')
+  if (paise > 0) r += ' and ' + w(paise).trim().replace(/\s+/g, ' ') + ' Paise'
+  return r + ' Only.'
+}
+
+export default function InvoiceDetail({
+  invoice, logoUrl, settings = {},
+}: {
+  invoice: Invoice
+  logoUrl?: string | null
+  settings?: Record<string, string>
+}) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -72,190 +100,269 @@ export default function InvoiceDetail({ invoice, logoUrl }: { invoice: Invoice; 
   }
 
   function downloadPDF() {
-    // Dynamic import so jsPDF only loads client-side
     import('jspdf').then(async ({ default: jsPDF }) => {
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-      const pageW = 210
-      const margin = 20
-      const contentW = pageW - margin * 2
-      let y = 20
+      const doc  = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      const ML   = 14   // left margin
+      const MR   = 196  // right edge
+      const CW   = MR - ML  // 182 mm content width
 
-      // Header — Brand
-      doc.setFillColor(17, 24, 39)
-      doc.rect(0, 0, pageW, 40, 'F')
+      // Business info from settings (with sensible defaults)
+      const bName    = settings.business_name || 'Krave Microgreens'
+      const bAddress = settings.address || ''
+      const bPhone   = settings.phone   || ''
+      const bEmail   = settings.email   || ''
+      const bGstin   = settings.gstin   || ''
+      const invNotes = settings.invoice_notes || ''
+      const cust     = invoice.customers
 
-      // Logo image (if uploaded) or text brand
+      let y = 12
+
+      // ── Load logo (async, top-right) ─────────────────────────────────
+      let logoB64 = '', logoType = 'PNG'
       if (logoUrl) {
         try {
-          const resp = await fetch(logoUrl)
-          const blob = await resp.blob()
-          const base64 = await new Promise<string>((resolve) => {
+          const blob = await fetch(logoUrl).then(r => r.blob())
+          logoB64 = await new Promise<string>(res => {
             const reader = new FileReader()
-            reader.onload = () => resolve(reader.result as string)
+            reader.onload = () => res(reader.result as string)
             reader.readAsDataURL(blob)
           })
-          const imgType = blob.type.includes('png') ? 'PNG'
-            : blob.type.includes('svg') ? 'PNG' : 'JPEG'
-          doc.addImage(base64, imgType, margin, y, 20, 20)
-          // Brand text to the right of logo
-          doc.setTextColor(34, 197, 94)
-          doc.setFontSize(16)
-          doc.setFont('helvetica', 'bold')
-          doc.text('KRAVE MICROGREENS', margin + 24, y + 8)
-          doc.setFontSize(8)
-          doc.setTextColor(148, 163, 184)
-          doc.setFont('helvetica', 'normal')
-          doc.text('Fresh Microgreens | Quality You Can Taste', margin + 24, y + 15)
-        } catch {
-          // Fallback to text-only if logo fetch fails
-          doc.setTextColor(34, 197, 94)
-          doc.setFontSize(20)
-          doc.setFont('helvetica', 'bold')
-          doc.text('KRAVE MICROGREENS', margin, y + 8)
-          doc.setFontSize(8)
-          doc.setTextColor(148, 163, 184)
-          doc.setFont('helvetica', 'normal')
-          doc.text('Fresh Microgreens | Quality You Can Taste', margin, y + 15)
-        }
-      } else {
-        doc.setTextColor(34, 197, 94)
-        doc.setFontSize(20)
-        doc.setFont('helvetica', 'bold')
-        doc.text('KRAVE MICROGREENS', margin, y + 8)
-        doc.setFontSize(8)
-        doc.setTextColor(148, 163, 184)
-        doc.setFont('helvetica', 'normal')
-        doc.text('Fresh Microgreens | Quality You Can Taste', margin, y + 15)
+          logoType = blob.type.includes('png') ? 'PNG' : 'JPEG'
+        } catch {}
       }
 
-      // Invoice badge
-      doc.setFillColor(34, 197, 94)
-      doc.roundedRect(pageW - margin - 40, y, 40, 14, 3, 3, 'F')
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(9)
-      doc.setFont('helvetica', 'bold')
-      doc.text(invoice.status.toUpperCase(), pageW - margin - 20, y + 9, { align: 'center' })
-
-      y = 50
-
-      // Invoice number + dates
-      doc.setTextColor(30, 30, 30)
-      doc.setFontSize(16)
-      doc.setFont('helvetica', 'bold')
-      doc.text(`Invoice ${invoice.invoice_number}`, margin, y)
-      y += 8
-      doc.setFontSize(9)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(100, 100, 100)
-      doc.text(`Issue Date: ${fmtDate(invoice.issue_date)}`, margin, y)
-      if (invoice.due_date) {
-        doc.text(`Due Date: ${fmtDate(invoice.due_date)}`, margin + 65, y)
-      }
-      y += 12
-
-      // Bill To
-      doc.setFillColor(245, 247, 250)
-      doc.rect(margin, y, contentW, invoice.customers.gstin ? 28 : 24, 'F')
-      y += 5
-      doc.setFontSize(8)
-      doc.setTextColor(100, 100, 100)
-      doc.setFont('helvetica', 'bold')
-      doc.text('BILL TO', margin + 4, y)
-      y += 5
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(30, 30, 30)
+      // ── SECTION 1 — HEADER ───────────────────────────────────────────
       doc.setFontSize(10)
-      doc.text(invoice.customers.name, margin + 4, y)
-      y += 5
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 119, 167)
+      doc.text('INVOICE', ML, y)
+
+      doc.setFontSize(7.5)
       doc.setFont('helvetica', 'normal')
-      doc.setFontSize(8)
       doc.setTextColor(80, 80, 80)
-      const addr = [invoice.customers.address, invoice.customers.city].filter(Boolean).join(', ')
-      if (addr) { doc.text(addr, margin + 4, y); y += 4 }
-      if (invoice.customers.gstin) { doc.text(`GSTIN: ${invoice.customers.gstin}`, margin + 4, y); y += 4 }
+      doc.text('ORIGINAL FOR RECIPIENT', MR, y, { align: 'right' })
       y += 6
 
-      // Table header
-      doc.setFillColor(17, 24, 39)
-      doc.rect(margin, y, contentW, 8, 'F')
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(8)
+      if (logoB64) doc.addImage(logoB64, logoType, MR - 30, 10, 30, 30)
+
+      // Business name
+      doc.setFontSize(15)
       doc.setFont('helvetica', 'bold')
-      doc.text('#', margin + 2, y + 5.5)
-      doc.text('DESCRIPTION', margin + 8, y + 5.5)
-      doc.text('UNIT', margin + 100, y + 5.5)
-      doc.text('QTY', margin + 118, y + 5.5)
-      doc.text('RATE', margin + 132, y + 5.5)
-      doc.text('AMOUNT', pageW - margin - 2, y + 5.5, { align: 'right' })
+      doc.setTextColor(20, 20, 20)
+      doc.text(bName.toUpperCase(), ML, y)
+      y += 6
+
+      // Address (wrap, leave room for logo)
+      if (bAddress) {
+        const addrW = logoB64 ? 138 : CW
+        const addrLines = doc.splitTextToSize(bAddress, addrW)
+        doc.setFontSize(7.5)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(60, 60, 60)
+        addrLines.forEach((l: string) => { doc.text(l, ML, y); y += 3.8 })
+      }
+
+      // Phone / Email / GSTIN
+      const contactParts = [
+        bPhone && `Mobile ${bPhone}`,
+        bEmail && `Email ${bEmail}`,
+      ].filter(Boolean)
+      if (contactParts.length) {
+        doc.setFontSize(7.5)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(60, 60, 60)
+        doc.text(contactParts.join('   '), ML, y)
+        y += 3.8
+      }
+      if (bGstin) {
+        doc.setFontSize(7.5)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(60, 60, 60)
+        doc.text(`GSTIN: ${bGstin}`, ML, y)
+        y += 3.8
+      }
+
+      if (logoB64) y = Math.max(y, 43) // clear logo height
+      y += 2
+
+      // ── DIVIDER ──────────────────────────────────────────────────────
+      doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3)
+      doc.line(ML, y, MR, y); y += 5
+
+      // ── SECTION 2 — INVOICE INFO ROW ─────────────────────────────────
+      const c1 = ML, c2 = ML + CW / 3, c3 = ML + (CW * 2) / 3
+
+      doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80)
+      doc.text('Invoice #:', c1, y)
+      doc.text('Invoice Date:', c2, y)
+      if (invoice.due_date) doc.text('Due Date:', c3, y)
+      y += 4
+
+      doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20)
+      doc.text(invoice.invoice_number, c1, y)
+      doc.text(fmtDate(invoice.issue_date), c2, y)
+      if (invoice.due_date) doc.text(fmtDate(invoice.due_date), c3, y)
       y += 8
 
-      // Table rows
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(30, 30, 30)
+      // ── DIVIDER ──────────────────────────────────────────────────────
+      doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3)
+      doc.line(ML, y, MR, y); y += 5
+
+      // ── SECTION 3 — CUSTOMER INFO (3 cols) ───────────────────────────
+      const colW3 = CW / 3
+
+      doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80)
+      doc.text('Customer Details:', c1, y)
+      doc.text('Billing Address:', c2, y)
+      doc.text('Shipping Address:', c3, y)
+      y += 4
+
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(20, 20, 20)
+      doc.text(cust.name ?? '', c1, y)
+
+      const custAddr  = [cust.address, cust.city].filter(Boolean).join(', ')
+      const custLines = doc.splitTextToSize(custAddr || '—', colW3 - 3)
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(60, 60, 60)
+      let bilY = y, shiY = y
+      custLines.forEach((l: string) => { doc.text(l, c2, bilY); bilY += 3.5 })
+      custLines.forEach((l: string) => { doc.text(l, c3, shiY); shiY += 3.5 })
+
+      y += 4
+      if (cust.gstin) {
+        doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(60, 60, 60)
+        doc.text(`GSTIN: ${cust.gstin}`, c1, y); y += 4
+      }
+      y = Math.max(y, bilY, shiY) + 4
+
+      // ── DIVIDER ──────────────────────────────────────────────────────
+      doc.setDrawColor(160, 160, 160); doc.setLineWidth(0.5)
+      doc.line(ML, y, MR, y); y += 1
+
+      // ── SECTION 4 — LINE ITEMS TABLE ─────────────────────────────────
+      const tNum  = ML,       tItem = ML + 8
+      const tRate = ML + 88,  tQty  = ML + 124, tAmt = MR
+
+      // Header row
+      doc.setFillColor(34, 34, 34)
+      doc.rect(ML, y, CW, 8, 'F')
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255)
+      const hY = y + 5.3
+      doc.text('#', tNum + 1, hY)
+      doc.text('Item', tItem, hY)
+      doc.text('Rate / Item', tRate, hY)
+      doc.text('Qty', tQty, hY)
+      doc.text('Amount', tAmt, hY, { align: 'right' })
+      y += 8
+
+      // Data rows
       invoice.invoice_items.forEach((item, idx) => {
-        const rowH = 7
-        if (idx % 2 === 0) { doc.setFillColor(252, 252, 252); doc.rect(margin, y, contentW, rowH, 'F') }
-        doc.setFontSize(8)
-        doc.text(String(idx + 1), margin + 2, y + 4.5)
-        doc.text(item.description.substring(0, 45), margin + 8, y + 4.5)
-        doc.text(item.unit ?? '', margin + 100, y + 4.5)
-        doc.text(String(item.quantity), margin + 118, y + 4.5)
-        doc.text(`₹${fmt(item.unit_price)}`, margin + 132, y + 4.5)
-        doc.text(`₹${fmt(item.line_total ?? item.quantity * item.unit_price)}`, pageW - margin - 2, y + 4.5, { align: 'right' })
-        y += rowH
+        const rH = 7
+        if (idx % 2 === 1) {
+          doc.setFillColor(248, 249, 250)
+          doc.rect(ML, y, CW, rH, 'F')
+        }
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(30, 30, 30)
+        const rY = y + 4.5
+        doc.text(String(idx + 1), tNum + 1, rY)
+        doc.text(item.description.substring(0, 38), tItem, rY)
+        doc.text(fmt(item.unit_price), tRate, rY)
+        doc.text(`${item.quantity} ${(item.unit ?? '').toUpperCase()}`, tQty, rY)
+        doc.text(fmt(item.line_total ?? item.quantity * item.unit_price), tAmt, rY, { align: 'right' })
+        y += rH
       })
 
-      // Totals
-      y += 4
-      doc.setDrawColor(220, 220, 220)
-      doc.line(margin + contentW / 2, y, pageW - margin, y)
-      y += 5
-      const totalsX = margin + contentW / 2
-      const totalsValX = pageW - margin - 2
-      doc.setFontSize(9)
-      doc.setTextColor(80, 80, 80)
-      doc.text('Subtotal', totalsX + 20, y)
-      doc.text(`₹${fmt(invoice.subtotal)}`, totalsValX, y, { align: 'right' })
+      doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3)
+      doc.line(ML, y, MR, y); y += 5
+
+      // ── SECTION 5 — TOTALS (right-aligned) ───────────────────────────
+      const tLX = ML + CW * 0.55
+
       if ((invoice.discount_amount ?? 0) > 0) {
-        y += 6
-        const discLabel = invoice.discount_type === 'pct'
-          ? `Discount (${invoice.discount_value}%)`
-          : 'Discount'
-        doc.setTextColor(34, 197, 94)
-        doc.text(discLabel, totalsX + 20, y)
-        doc.text(`-₹${fmt(invoice.discount_amount ?? 0)}`, totalsValX, y, { align: 'right' })
-        doc.setTextColor(80, 80, 80)
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(60, 60, 60)
+        const dl = invoice.discount_type === 'pct'
+          ? `Discount (${invoice.discount_value}%)` : 'Discount'
+        doc.text(dl, tLX, y)
+        doc.setTextColor(180, 30, 30)
+        doc.text(`- \u20b9${fmt(invoice.discount_amount ?? 0)}`, MR, y, { align: 'right' })
+        y += 7
       }
+
       if (invoice.apply_gst) {
-        y += 6
-        doc.text(`GST (${invoice.gst_rate}%)`, totalsX + 20, y)
-        doc.text(`₹${fmt(invoice.gst_amount)}`, totalsValX, y, { align: 'right' })
-      }
-      y += 8
-      doc.setFillColor(17, 24, 39)
-      doc.rect(totalsX + 16, y - 5, pageW - margin - totalsX - 16, 10, 'F')
-      doc.setTextColor(255, 255, 255)
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(10)
-      doc.text('TOTAL', totalsX + 20, y + 2)
-      doc.text(`₹${fmt(invoice.total)}`, totalsValX, y + 2, { align: 'right' })
-      y += 16
-
-      // Notes
-      if (invoice.notes) {
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(8)
-        doc.setTextColor(100, 100, 100)
-        doc.text(invoice.notes, margin, y)
-        y += 8
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(60, 60, 60)
+        doc.text(`GST (${invoice.gst_rate}%)`, tLX, y)
+        doc.setTextColor(30, 30, 30)
+        doc.text(`\u20b9${fmt(invoice.gst_amount)}`, MR, y, { align: 'right' })
+        y += 7
       }
 
-      // Footer
-      doc.setFillColor(245, 247, 250)
-      doc.rect(0, 280, pageW, 17, 'F')
-      doc.setFontSize(7)
-      doc.setTextColor(150, 150, 150)
-      doc.text('Thank you for your business with Krave Microgreens!', pageW / 2, 288, { align: 'center' })
+      // Total line
+      doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3)
+      doc.line(tLX - 2, y - 2, MR, y - 2)
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(20, 20, 20)
+      doc.text('Total', tLX, y + 5)
+      doc.text(`\u20b9${fmt(invoice.total)}`, MR, y + 5, { align: 'right' })
+      y += 12
+
+      // ── DIVIDER ──────────────────────────────────────────────────────
+      doc.setDrawColor(160, 160, 160); doc.setLineWidth(0.5)
+      doc.line(ML, y, MR, y); y += 1
+
+      // ── SECTION 6 — FOOTER STRIP ─────────────────────────────────────
+      const stripH = 17
+      doc.setFillColor(247, 247, 247)
+      doc.rect(ML, y, CW, stripH, 'F')
+
+      const totalQty  = invoice.invoice_items.reduce((s, i) => s + i.quantity, 0)
+      const amtWords  = numberToWords(invoice.total)
+      const hasDisc   = (invoice.discount_amount ?? 0) > 0
+
+      doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(60, 60, 60)
+      doc.text(`Total Items / Qty : ${invoice.invoice_items.length} / ${totalQty}`, ML + 2, y + 5)
+      if (hasDisc) {
+        doc.text(`Total Discount : \u20b9${fmt(invoice.discount_amount ?? 0)}`, ML + 2, y + 10)
+      }
+      const wordsStr  = `Total amount (in words): ${amtWords}`
+      const wordsLines = doc.splitTextToSize(wordsStr, CW * 0.65)
+      const wordsStartY = hasDisc ? y + 14 : y + 10
+      wordsLines.forEach((l: string, i: number) => doc.text(l, ML + 2, wordsStartY + i * 3.5))
+
+      // Amount payable (right)
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(20, 20, 20)
+      doc.text('Amount Payable:', MR - 44, y + 7)
+      doc.text(`\u20b9${fmt(invoice.total)}`, MR, y + 7, { align: 'right' })
+
+      doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.5)
+      doc.line(ML, y + stripH, MR, y + stripH)
+      y += stripH + 8
+
+      // ── SECTION 7 — SIGNATURE ────────────────────────────────────────
+      doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(50, 50, 50)
+      doc.text(`For ${bName.toUpperCase()}`, MR, y, { align: 'right' })
+      y += 22 // signature space
+
+      doc.setDrawColor(160, 160, 160); doc.setLineWidth(0.4)
+      doc.line(MR - 52, y, MR, y)
+      y += 4
+      doc.setFontSize(7.5); doc.setTextColor(80, 80, 80)
+      doc.text('Authorized Signatory', MR - 26, y, { align: 'center' })
+      y += 10
+
+      // ── SECTION 8 — NOTES & T&C ──────────────────────────────────────
+      const noteText = invoice.notes || invNotes
+      if (noteText) {
+        doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20)
+        doc.text('Notes:', ML, y); y += 4
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(60, 60, 60)
+        doc.splitTextToSize(`"${noteText}"`, CW)
+          .forEach((l: string) => { doc.text(l, ML, y); y += 3.5 })
+        y += 3
+      }
+
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20)
+      doc.text('Terms and Conditions:', ML, y); y += 4
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(60, 60, 60)
+      doc.text('1. Goods once sold will not be taken back or exchanged', ML, y); y += 3.8
+      doc.text('2. All disputes are subject to COIMBATORE jurisdiction only', ML, y)
 
       doc.save(`${invoice.invoice_number}.pdf`)
     })
