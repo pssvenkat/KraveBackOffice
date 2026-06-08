@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { esc, sendMessage } from './bot'
 
 const fmt = (n: number) =>
@@ -35,20 +35,23 @@ export async function cmdHelp(chatId: number) {
 
 // ── /stock ────────────────────────────────────────────────────────────────────
 export async function cmdStock(chatId: number) {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: allItems, error } = await supabase
     .from('inventory_items')
-    .select('name, quantity, uom, reorder_level, inventory_categories(icon)')
+    .select('name, quantity, unit, reorder_level, inventory_categories(icon)')
     .eq('is_active', true)
     .order('quantity', { ascending: true })
 
   if (error) {
-    await sendMessage(chatId, '❌ Error fetching inventory.')
+    console.error('cmdStock error:', error)
+    await sendMessage(chatId, `❌ Error fetching inventory: ${esc(error.message)}`)
     return
   }
 
-  const lowStock = (allItems ?? []).filter((i: any) => i.reorder_level > 0 && i.quantity <= i.reorder_level)
+  const lowStock = (allItems ?? []).filter(
+    (i: any) => i.reorder_level > 0 && i.quantity <= i.reorder_level
+  )
 
   if (lowStock.length === 0) {
     await sendMessage(chatId, '✅ <b>All stock levels are OK!</b> Nothing below reorder level.')
@@ -58,7 +61,7 @@ export async function cmdStock(chatId: number) {
   const lines = lowStock.slice(0, 15).map((i: any) => {
     const icon = (i.inventory_categories as any)?.icon ?? '📦'
     const status = i.quantity === 0 ? '🔴' : '🟡'
-    return `${status} <b>${esc(i.name)}</b> — ${i.quantity}${i.uom ?? ''} (min: ${i.reorder_level}${i.uom ?? ''})`
+    return `${status} ${icon} <b>${esc(i.name)}</b> — ${i.quantity}${i.unit ?? ''} (min: ${i.reorder_level}${i.unit ?? ''})`
   })
 
   await sendMessage(chatId,
@@ -69,7 +72,7 @@ export async function cmdStock(chatId: number) {
 
 // ── /outstanding ──────────────────────────────────────────────────────────────
 export async function cmdOutstanding(chatId: number) {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('invoices')
     .select('invoice_number, total, amount_paid, due_date, customers(name)')
@@ -78,12 +81,13 @@ export async function cmdOutstanding(chatId: number) {
     .limit(10)
 
   if (error) {
-    await sendMessage(chatId, '❌ Error fetching receivables.')
+    console.error('cmdOutstanding error:', error)
+    await sendMessage(chatId, `❌ Error fetching receivables: ${esc(error.message)}`)
     return
   }
 
   if (!data || data.length === 0) {
-    await sendMessage(chatId, '✅ <b>No outstanding invoices!</b> All invoices are paid.')
+    await sendMessage(chatId, '✅ <b>No outstanding invoices!</b> All invoices are settled.')
     return
   }
 
@@ -98,7 +102,7 @@ export async function cmdOutstanding(chatId: number) {
       ? dueDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
       : 'no due date'
     const flag = overdue ? '🔴' : '🟡'
-    return `${flag} ${esc(inv.invoice_number)} | ${esc((inv.customers as any)?.name ?? '—')} | <b>${esc(fmt(outstanding))}</b> (due ${esc(dueTxt)})`
+    return `${flag} <b>${esc(inv.invoice_number)}</b> | ${esc((inv.customers as any)?.name ?? '—')} | <b>${esc(fmt(outstanding))}</b> (due ${esc(dueTxt)})`
   })
 
   await sendMessage(chatId,
@@ -110,7 +114,7 @@ export async function cmdOutstanding(chatId: number) {
 
 // ── /revenue ──────────────────────────────────────────────────────────────────
 export async function cmdRevenue(chatId: number) {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
   const monthName = now.toLocaleString('en-IN', { month: 'long', year: 'numeric' })
@@ -122,7 +126,8 @@ export async function cmdRevenue(chatId: number) {
     .gte('issue_date', monthStart)
 
   if (error) {
-    await sendMessage(chatId, '❌ Error fetching revenue.')
+    console.error('cmdRevenue error:', error)
+    await sendMessage(chatId, `❌ Error fetching revenue: ${esc(error.message)}`)
     return
   }
 
@@ -142,7 +147,7 @@ export async function cmdAddStock(chatId: number, args: string) {
   if (tokens.length < 2) {
     await sendMessage(chatId,
       '❌ Usage: <code>/addstock [item name] [quantity]</code>\n\n' +
-      'Example: <code>/addstock sunflower 500</code>'
+      'Example: <code>/addstock bok choy 500</code>'
     )
     return
   }
@@ -155,17 +160,22 @@ export async function cmdAddStock(chatId: number, args: string) {
   }
 
   const itemName = tokens.slice(0, -1).join(' ')
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
-  const { data: items } = await supabase
+  const { data: items, error } = await supabase
     .from('inventory_items')
-    .select('id, name, quantity, uom')
+    .select('id, name, quantity, unit')
     .eq('is_active', true)
     .ilike('name', `%${itemName}%`)
     .limit(3)
 
+  if (error) {
+    await sendMessage(chatId, `❌ Error searching items: ${esc(error.message)}`)
+    return
+  }
+
   if (!items || items.length === 0) {
-    await sendMessage(chatId, `❌ No item found matching <b>${esc(itemName)}</b>.`)
+    await sendMessage(chatId, `❌ No item found matching <b>${esc(itemName)}</b>.\nCheck spelling with /stock.`)
     return
   }
 
@@ -186,32 +196,42 @@ export async function cmdAddStock(chatId: number, args: string) {
     .eq('id', item.id)
 
   if (updateErr) {
-    await sendMessage(chatId, '❌ Failed to update stock.')
+    await sendMessage(chatId, `❌ Failed to update stock: ${esc(updateErr.message)}`)
     return
   }
 
+  // Log transaction (best effort)
   await supabase.from('inventory_transactions').insert({
     item_id: item.id,
-    type: 'in',
-    quantity: qty,
-    notes: 'Added via Telegram bot',
+    transaction_type: 'add',
+    quantity_delta: qty,
+    quantity_after: newQty,
+    note: 'Added via Telegram bot',
+    source: 'telegram',
   })
 
   await sendMessage(chatId,
     `✅ <b>Stock updated!</b>\n\n` +
     `📦 <b>${esc(item.name)}</b>\n` +
-    `+${qty}${item.uom ?? ''} added\n` +
-    `New stock: <b>${newQty}${item.uom ?? ''}</b>`
+    `+${qty}${item.unit ?? ''} added\n` +
+    `New stock: <b>${newQty}${item.unit ?? ''}</b>`
   )
 }
 
 // ── /customers ────────────────────────────────────────────────────────────────
 export async function cmdCustomers(chatId: number) {
-  const supabase = await createClient()
-  const { count } = await supabase
+  const supabase = createServiceClient()
+  const { count, error } = await supabase
     .from('customers')
     .select('*', { count: 'exact', head: true })
     .eq('is_active', true)
 
-  await sendMessage(chatId, `👥 <b>${count ?? 0}</b> active customer${(count ?? 0) !== 1 ? 's' : ''} in Krave Microgreens.`)
+  if (error) {
+    await sendMessage(chatId, `❌ Error fetching customers: ${esc(error.message)}`)
+    return
+  }
+
+  await sendMessage(chatId,
+    `👥 <b>${count ?? 0}</b> active customer${(count ?? 0) !== 1 ? 's' : ''} in Krave Microgreens.`
+  )
 }
