@@ -1,11 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-
-// ─── Schema ────────────────────────────────────────────────────────────────
 
 const CustomerSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
@@ -35,74 +32,30 @@ export type CustomerFormState = {
   success?: boolean
 }
 
-// ─── Create ────────────────────────────────────────────────────────────────
-
 export async function createCustomer(
   prevState: CustomerFormState,
   formData: FormData
 ): Promise<CustomerFormState> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { message: 'Unauthorized', success: false }
+  try {
+    const supabase = await createClient()
+    const { data: authData } = await supabase.auth.getUser()
+    if (!authData?.user) return { message: 'Unauthorized', success: false }
 
-  const validated = CustomerSchema.safeParse({
-    name: formData.get('name'),
-    email: formData.get('email') || '',
-    phone: formData.get('phone') || '',
-    address: formData.get('address') || '',
-    city: formData.get('city') || '',
-    gstin: formData.get('gstin') || '',
-    notes: formData.get('notes') || '',
-  })
+    const validated = CustomerSchema.safeParse({
+      name: formData.get('name'),
+      email: formData.get('email') || '',
+      phone: formData.get('phone') || '',
+      address: formData.get('address') || '',
+      city: formData.get('city') || '',
+      gstin: formData.get('gstin') || '',
+      notes: formData.get('notes') || '',
+    })
 
-  if (!validated.success) {
-    return { errors: validated.error.flatten().fieldErrors, success: false }
-  }
+    if (!validated.success) {
+      return { errors: validated.error.flatten().fieldErrors, success: false }
+    }
 
-  const { error } = await supabase.from('customers').insert({
-    name: validated.data.name,
-    email: validated.data.email || null,
-    phone: validated.data.phone || null,
-    address: validated.data.address || null,
-    city: validated.data.city || null,
-    gstin: validated.data.gstin || null,
-    notes: validated.data.notes || null,
-  })
-
-  if (error) return { message: error.message, success: false }
-
-  revalidatePath('/customers')
-  return { message: 'Customer created successfully', success: true }
-}
-
-// ─── Update ────────────────────────────────────────────────────────────────
-
-export async function updateCustomer(
-  id: string,
-  prevState: CustomerFormState,
-  formData: FormData
-): Promise<CustomerFormState> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { message: 'Unauthorized', success: false }
-
-  const validated = CustomerSchema.safeParse({
-    name: formData.get('name'),
-    email: formData.get('email') || '',
-    phone: formData.get('phone') || '',
-    address: formData.get('address') || '',
-    city: formData.get('city') || '',
-    gstin: formData.get('gstin') || '',
-    notes: formData.get('notes') || '',
-  })
-
-  if (!validated.success) {
-    return { errors: validated.error.flatten().fieldErrors, success: false }
-  }
-
-  const { error } = await supabase
-    .from('customers')
-    .update({
+    const { error } = await supabase.from('customers').insert({
       name: validated.data.name,
       email: validated.data.email || null,
       phone: validated.data.phone || null,
@@ -111,28 +64,81 @@ export async function updateCustomer(
       gstin: validated.data.gstin || null,
       notes: validated.data.notes || null,
     })
-    .eq('id', id)
 
-  if (error) return { message: error.message, success: false }
+    if (error) return { message: error.message, success: false }
 
-  revalidatePath('/customers')
-  return { message: 'Customer updated successfully', success: true }
+    revalidatePath('/customers')
+    return { message: 'Customer created successfully', success: true }
+  } catch (err: unknown) {
+    console.error('createCustomer error:', err)
+    return { message: err instanceof Error ? err.message : 'Unexpected error', success: false }
+  }
 }
 
-// ─── Delete (soft) ─────────────────────────────────────────────────────────
+export async function updateCustomer(
+  id: string,
+  prevState: CustomerFormState,
+  formData: FormData
+): Promise<CustomerFormState> {
+  try {
+    const supabase = await createClient()
+    const { data: authData } = await supabase.auth.getUser()
+    if (!authData?.user) return { message: 'Unauthorized', success: false }
+
+    const validated = CustomerSchema.safeParse({
+      name: formData.get('name'),
+      email: formData.get('email') || '',
+      phone: formData.get('phone') || '',
+      address: formData.get('address') || '',
+      city: formData.get('city') || '',
+      gstin: formData.get('gstin') || '',
+      notes: formData.get('notes') || '',
+    })
+
+    if (!validated.success) {
+      return { errors: validated.error.flatten().fieldErrors, success: false }
+    }
+
+    const { error } = await supabase
+      .from('customers')
+      .update({
+        name: validated.data.name,
+        email: validated.data.email || null,
+        phone: validated.data.phone || null,
+        address: validated.data.address || null,
+        city: validated.data.city || null,
+        gstin: validated.data.gstin || null,
+        notes: validated.data.notes || null,
+      })
+      .eq('id', id)
+
+    if (error) return { message: error.message, success: false }
+
+    revalidatePath('/customers')
+    return { message: 'Customer updated successfully', success: true }
+  } catch (err: unknown) {
+    console.error('updateCustomer error:', err)
+    return { message: err instanceof Error ? err.message : 'Unexpected error', success: false }
+  }
+}
 
 export async function deleteCustomer(id: string): Promise<{ error?: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
+  try {
+    const supabase = await createClient()
+    const { data: authData } = await supabase.auth.getUser()
+    if (!authData?.user) return { error: 'Unauthorized' }
 
-  const { error } = await supabase
-    .from('customers')
-    .update({ is_active: false })
-    .eq('id', id)
+    const { error } = await supabase
+      .from('customers')
+      .update({ is_active: false })
+      .eq('id', id)
 
-  if (error) return { error: error.message }
+    if (error) return { error: error.message }
 
-  revalidatePath('/customers')
-  return {}
+    revalidatePath('/customers')
+    return {}
+  } catch (err: unknown) {
+    console.error('deleteCustomer error:', err)
+    return { error: err instanceof Error ? err.message : 'Unexpected error' }
+  }
 }

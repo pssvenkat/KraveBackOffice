@@ -135,6 +135,7 @@ export async function createInvoice(
 
 // ─── Update Invoice Status ────────────────────────────────────────────────
 
+
 export async function updateInvoiceStatus(
   invoiceId: string,
   status: 'draft' | 'sent' | 'paid' | 'partial'
@@ -159,19 +160,18 @@ export async function updateInvoiceStatus(
 
 export async function deleteInvoice(invoiceId: string): Promise<{ error?: string }> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
+  const { data: authData } = await supabase.auth.getUser()
+  if (!authData?.user) return { error: 'Unauthorized' }
 
-  // Only draft invoices can be deleted
-  const { data: inv } = await supabase
+  const { data: inv, error: fetchErr } = await supabase
     .from('invoices')
     .select('status')
     .eq('id', invoiceId)
     .single()
 
-  if (inv?.status !== 'draft') return { error: 'Only draft invoices can be deleted' }
+  if (fetchErr || !inv) return { error: 'Invoice not found' }
+  if (inv.status !== 'draft') return { error: 'Only draft invoices can be deleted' }
 
-  // Delete items first (cascade should handle it but being explicit)
   await supabase.from('invoice_items').delete().eq('invoice_id', invoiceId)
   const { error } = await supabase.from('invoices').delete().eq('id', invoiceId)
 

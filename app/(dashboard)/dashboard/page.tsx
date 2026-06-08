@@ -58,8 +58,8 @@ export default async function DashboardPage() {
   const [
     { data: monthInvoices },
     { data: outstandingInvoices },
-    { data: customerCount },
-    { data: lowStockItems },
+    { count: activeCusts },           // count-only query: use count, not data
+    { data: allInventoryItems },      // fetch all, filter client-side (PostgREST can't compare columns)
     { data: recentInvoices },
     { data: monthlyData },
   ] = await Promise.all([
@@ -76,18 +76,20 @@ export default async function DashboardPage() {
       .select('total, amount_paid, due_date, status')
       .in('status', ['sent', 'partial']),
 
-    // Active customers
+    // Active customers — count-only: must destructure { count }, not { data }
     supabase
       .from('customers')
-      .select('id', { count: 'exact', head: true })
+      .select('*', { count: 'exact', head: true })
       .eq('is_active', true),
 
-    // Low stock items
+    // All active inventory items — filter client-side for low stock
+    // (PostgREST cannot compare two columns: .filter('quantity','lte','reorder_level') is broken)
     supabase
       .from('inventory_items')
       .select('id, name, quantity, reorder_level, inventory_categories(name, icon)')
       .eq('is_active', true)
-      .filter('quantity', 'lte', 'reorder_level'),
+      .order('quantity', { ascending: true })
+      .limit(100),
 
     // Recent invoices (last 5)
     supabase
@@ -106,14 +108,17 @@ export default async function DashboardPage() {
 
   // Compute KPI values
   const monthRevenue = (monthInvoices ?? []).reduce((s, i) => s + i.total, 0)
-  const totalOutstanding = (outstandingInvoices ?? []).reduce((s, i) => s + (i.total - i.amount_paid), 0)
+  const totalOutstanding = (outstandingInvoices ?? []).reduce(
+    (s, i) => s + (i.total - (i.amount_paid ?? 0)), 0
+  )
   const overdueCount = (outstandingInvoices ?? []).filter(
     (i) => i.due_date && new Date(i.due_date) < new Date(today)
   ).length
-  const activeCusts = (customerCount as any)?.count ?? 0
 
-  // Low stock: quantity <= reorder_level (and reorder > 0)
-  const lowStock = (lowStockItems ?? []).filter((i: any) => i.reorder_level > 0 || i.quantity === 0)
+  // Low stock: client-side column comparison (quantity <= reorder_level, reorder > 0)
+  const lowStock = (allInventoryItems ?? []).filter(
+    (i: any) => i.reorder_level > 0 && i.quantity <= i.reorder_level
+  )
 
   // Build monthly chart data
   const months: { month: string; revenue: number }[] = []

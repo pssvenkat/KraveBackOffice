@@ -18,7 +18,7 @@ const UNITS = [
 const ItemSchema = z.object({
   name: z.string().min(1, 'Name is required').max(150),
   description: z.string().max(300).optional(),
-  uom: z.enum(UNITS, { error: 'Select a valid unit' }),
+  uom: z.enum(UNITS),
   default_price: z.coerce.number().min(0, 'Price must be 0 or more'),
   hsn_code: z.string().max(10).optional(),
 })
@@ -28,37 +28,43 @@ export async function createCatalogItem(
   prevState: CatalogItemFormState,
   formData: FormData
 ): Promise<CatalogItemFormState> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { message: 'Unauthorized', success: false }
+  try {
+    const supabase = await createClient()
+    const { data: authData } = await supabase.auth.getUser()
+    if (!authData?.user) return { message: 'Unauthorized', success: false }
 
-  const validated = ItemSchema.safeParse({
-    name: formData.get('name'),
-    description: formData.get('description') || undefined,
-    uom: formData.get('uom'),
-    default_price: formData.get('default_price'),
-    hsn_code: formData.get('hsn_code') || undefined,
-  })
+    const raw = {
+      name: formData.get('name'),
+      description: formData.get('description') || undefined,
+      uom: formData.get('uom'),
+      default_price: formData.get('default_price'),
+      hsn_code: formData.get('hsn_code') || undefined,
+    }
 
-  if (!validated.success) {
-    return { errors: validated.error.flatten().fieldErrors, success: false }
+    const validated = ItemSchema.safeParse(raw)
+    if (!validated.success) {
+      return { errors: validated.error.flatten().fieldErrors, success: false }
+    }
+
+    const { error } = await supabase.from('catalog_items').insert({
+      name: validated.data.name,
+      description: validated.data.description || null,
+      uom: validated.data.uom,
+      default_price: validated.data.default_price,
+      hsn_code: validated.data.hsn_code || null,
+    })
+
+    if (error) {
+      if (error.code === '23505') return { errors: { name: ['An item with this name already exists'] }, success: false }
+      return { message: error.message, success: false }
+    }
+
+    revalidatePath('/items')
+    return { success: true }
+  } catch (err: unknown) {
+    console.error('createCatalogItem error:', err)
+    return { message: err instanceof Error ? err.message : 'Unexpected error. Please try again.', success: false }
   }
-
-  const { error } = await supabase.from('catalog_items').insert({
-    name: validated.data.name,
-    description: validated.data.description || null,
-    uom: validated.data.uom,
-    default_price: validated.data.default_price,
-    hsn_code: validated.data.hsn_code || null,
-  })
-
-  if (error) {
-    if (error.code === '23505') return { errors: { name: ['An item with this name already exists'] }, success: false }
-    return { message: error.message, success: false }
-  }
-
-  revalidatePath('/items')
-  return { success: true }
 }
 
 // ─── Update ───────────────────────────────────────────────────────────────────
@@ -67,54 +73,68 @@ export async function updateCatalogItem(
   prevState: CatalogItemFormState,
   formData: FormData
 ): Promise<CatalogItemFormState> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { message: 'Unauthorized', success: false }
+  try {
+    const supabase = await createClient()
+    const { data: authData } = await supabase.auth.getUser()
+    if (!authData?.user) return { message: 'Unauthorized', success: false }
 
-  const validated = ItemSchema.safeParse({
-    name: formData.get('name'),
-    description: formData.get('description') || undefined,
-    uom: formData.get('uom'),
-    default_price: formData.get('default_price'),
-    hsn_code: formData.get('hsn_code') || undefined,
-  })
+    const raw = {
+      name: formData.get('name'),
+      description: formData.get('description') || undefined,
+      uom: formData.get('uom'),
+      default_price: formData.get('default_price'),
+      hsn_code: formData.get('hsn_code') || undefined,
+    }
 
-  if (!validated.success) {
-    return { errors: validated.error.flatten().fieldErrors, success: false }
+    const validated = ItemSchema.safeParse(raw)
+    if (!validated.success) {
+      return { errors: validated.error.flatten().fieldErrors, success: false }
+    }
+
+    const { error } = await supabase
+      .from('catalog_items')
+      .update({
+        name: validated.data.name,
+        description: validated.data.description || null,
+        uom: validated.data.uom,
+        default_price: validated.data.default_price,
+        hsn_code: validated.data.hsn_code || null,
+      })
+      .eq('id', id)
+
+    if (error) {
+      if (error.code === '23505') return { errors: { name: ['An item with this name already exists'] }, success: false }
+      return { message: error.message, success: false }
+    }
+
+    revalidatePath('/items')
+    return { success: true }
+  } catch (err: unknown) {
+    console.error('updateCatalogItem error:', err)
+    return { message: err instanceof Error ? err.message : 'Unexpected error. Please try again.', success: false }
   }
-
-  const { error } = await supabase.from('catalog_items').update({
-    name: validated.data.name,
-    description: validated.data.description || null,
-    uom: validated.data.uom,
-    default_price: validated.data.default_price,
-    hsn_code: validated.data.hsn_code || null,
-  }).eq('id', id)
-
-  if (error) {
-    if (error.code === '23505') return { errors: { name: ['An item with this name already exists'] }, success: false }
-    return { message: error.message, success: false }
-  }
-
-  revalidatePath('/items')
-  return { success: true }
 }
 
 // ─── Soft Delete ──────────────────────────────────────────────────────────────
 export async function deleteCatalogItem(id: string): Promise<{ error?: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
+  try {
+    const supabase = await createClient()
+    const { data: authData } = await supabase.auth.getUser()
+    if (!authData?.user) return { error: 'Unauthorized' }
 
-  const { error } = await supabase
-    .from('catalog_items')
-    .update({ is_active: false })
-    .eq('id', id)
+    const { error } = await supabase
+      .from('catalog_items')
+      .update({ is_active: false })
+      .eq('id', id)
 
-  if (error) return { error: error.message }
+    if (error) return { error: error.message }
 
-  revalidatePath('/items')
-  return {}
+    revalidatePath('/items')
+    return {}
+  } catch (err: unknown) {
+    console.error('deleteCatalogItem error:', err)
+    return { error: err instanceof Error ? err.message : 'Unexpected error' }
+  }
 }
 
 export { UNITS }
