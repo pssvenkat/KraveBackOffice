@@ -69,8 +69,12 @@ export async function saveSettings(
 }
 
 export async function getSettings(): Promise<Record<string, string>> {
-  const supabase = await createClient()
-  const { data } = await supabase.from('app_settings').select('key, value')
-  if (!data) return {}
-  return Object.fromEntries(data.map(({ key, value }) => [key, value]))
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase.from('app_settings').select('key, value')
+    if (error || !data) return {}
+    return Object.fromEntries(data.map(({ key, value }) => [key, value]))
+  } catch {
+    return {}
+  }
 }

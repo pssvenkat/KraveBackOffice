@@ -6,6 +6,7 @@ export const metadata: Metadata = { title: 'Settings' }
 
 export default async function SettingsPage() {
   const settings = await getSettings()
+  const tableReady = Object.keys(settings).length > 0
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
@@ -15,6 +16,27 @@ export default async function SettingsPage() {
           Business info, bank details, and invoice configuration
         </p>
       </div>
+
+      {!tableReady && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-5 space-y-2">
+          <p className="text-sm font-semibold text-amber-300">⚠️ Settings table not set up yet</p>
+          <p className="text-xs text-amber-400/80">
+            Run the <code className="bg-[#0a0f1a] px-1.5 py-0.5 rounded">app_settings</code> SQL
+            block from <code className="bg-[#0a0f1a] px-1.5 py-0.5 rounded">DATABASE_SCHEMA.md</code>
+            in your{' '}
+            <a
+              href="https://supabase.com/dashboard/project/eostzwmrakhfbbehytaw/sql/new"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-amber-300"
+            >
+              Supabase SQL Editor
+            </a>
+            , then refresh this page.
+          </p>
+        </div>
+      )}
+
       <SettingsForm settings={settings} />
     </div>
   )
