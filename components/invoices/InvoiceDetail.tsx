@@ -336,9 +336,33 @@ export default function InvoiceDetail({
       y += stripH + 8
 
       // ── SECTION 7 — SIGNATURE ────────────────────────────────────────
+      const sigUrl = settings.signature_url || null
+
+      // Load signature image async (if set)
+      let sigB64 = '', sigType = 'PNG'
+      if (sigUrl) {
+        try {
+          const blob = await fetch(sigUrl).then(r => r.blob())
+          sigB64 = await new Promise<string>(res => {
+            const reader = new FileReader()
+            reader.onload = () => res(reader.result as string)
+            reader.readAsDataURL(blob)
+          })
+          sigType = blob.type.includes('png') ? 'PNG' : 'JPEG'
+        } catch {}
+      }
+
       doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(50, 50, 50)
       doc.text(`For ${bName.toUpperCase()}`, MR, y, { align: 'right' })
-      y += 22 // signature space
+      y += 4
+
+      // Signature image (48mm wide, 18mm tall), right-aligned
+      if (sigB64) {
+        doc.addImage(sigB64, sigType, MR - 52, y, 52, 18)
+        y += 20
+      } else {
+        y += 20 // blank space when no signature uploaded
+      }
 
       doc.setDrawColor(160, 160, 160); doc.setLineWidth(0.4)
       doc.line(MR - 52, y, MR, y)

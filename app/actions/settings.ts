@@ -128,3 +128,47 @@ export async function uploadLogo(
     return { error: err instanceof Error ? err.message : 'Upload failed' }
   }
 }
+
+// ── Signature Upload ─────────────────────────────────────────────────────────
+
+export async function uploadSignature(
+  formData: FormData
+): Promise<{ url?: string; error?: string }> {
+  try {
+    const supabase = createServiceClient()
+
+    const file = formData.get('signature') as File
+    if (!file || file.size === 0) return { error: 'No file selected' }
+    if (!file.type.startsWith('image/')) return { error: 'Must be an image file' }
+    if (file.size > 2 * 1024 * 1024) return { error: 'Image must be under 2MB' }
+
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? 'png'
+    if (!['png', 'jpg', 'jpeg', 'webp'].includes(ext))
+      return { error: 'Allowed formats: PNG, JPG, WebP' }
+
+    const buffer = await file.arrayBuffer()
+
+    await supabase.storage.createBucket('signatures', { public: true }).catch(() => {})
+
+    const { error: uploadErr } = await supabase.storage
+      .from('signatures')
+      .upload(`signature.${ext}`, buffer, { contentType: file.type, upsert: true })
+
+    if (uploadErr) return { error: uploadErr.message }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('signatures')
+      .getPublicUrl(`signature.${ext}`)
+
+    const url = `${publicUrl}?v=${Date.now()}`
+
+    await supabase
+      .from('app_settings')
+      .upsert({ key: 'signature_url', value: url }, { onConflict: 'key' })
+
+    revalidatePath('/settings')
+    return { url }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Upload failed' }
+  }
+}

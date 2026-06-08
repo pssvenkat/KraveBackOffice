@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { getSettings } from '@/app/actions/settings'
 import SettingsForm from '@/components/settings/SettingsForm'
 import LogoUpload from '@/components/settings/LogoUpload'
+import SignatureUpload from '@/components/settings/SignatureUpload'
 
 export const metadata: Metadata = { title: 'Settings' }
 
@@ -40,6 +41,9 @@ export default async function SettingsPage() {
 
       {/* Logo upload — always shown even if other settings aren't ready */}
       <LogoUpload currentLogoUrl={settings.logo_url} />
+
+      {/* Signature upload */}
+      <SignatureUpload currentSignatureUrl={settings.signature_url} />
 
       <SettingsForm settings={settings} />
     </div>
