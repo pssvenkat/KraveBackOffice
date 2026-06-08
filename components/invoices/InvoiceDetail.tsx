@@ -283,7 +283,7 @@ export default function InvoiceDetail({
           ? `Discount (${invoice.discount_value}%)` : 'Discount'
         doc.text(dl, tLX, y)
         doc.setTextColor(180, 30, 30)
-        doc.text(`- \u20b9${fmt(invoice.discount_amount ?? 0)}`, MR, y, { align: 'right' })
+        doc.text(`- Rs. ${fmt(invoice.discount_amount ?? 0)}`, MR, y, { align: 'right' })
         y += 7
       }
 
@@ -291,7 +291,7 @@ export default function InvoiceDetail({
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(60, 60, 60)
         doc.text(`GST (${invoice.gst_rate}%)`, tLX, y)
         doc.setTextColor(30, 30, 30)
-        doc.text(`\u20b9${fmt(invoice.gst_amount)}`, MR, y, { align: 'right' })
+        doc.text(`Rs. ${fmt(invoice.gst_amount)}`, MR, y, { align: 'right' })
         y += 7
       }
 
@@ -300,7 +300,7 @@ export default function InvoiceDetail({
       doc.line(tLX - 2, y - 2, MR, y - 2)
       doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(20, 20, 20)
       doc.text('Total', tLX, y + 5)
-      doc.text(`\u20b9${fmt(invoice.total)}`, MR, y + 5, { align: 'right' })
+      doc.text(`Rs. ${fmt(invoice.total)}`, MR, y + 5, { align: 'right' })
       y += 12
 
       // ── DIVIDER ──────────────────────────────────────────────────────
@@ -319,7 +319,7 @@ export default function InvoiceDetail({
       doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(60, 60, 60)
       doc.text(`Total Items / Qty : ${invoice.invoice_items.length} / ${totalQty}`, ML + 2, y + 5)
       if (hasDisc) {
-        doc.text(`Total Discount : \u20b9${fmt(invoice.discount_amount ?? 0)}`, ML + 2, y + 10)
+        doc.text(`Total Discount : Rs. ${fmt(invoice.discount_amount ?? 0)}`, ML + 2, y + 10)
       }
       const wordsStr  = `Total amount (in words): ${amtWords}`
       const wordsLines = doc.splitTextToSize(wordsStr, CW * 0.65)
@@ -329,7 +329,7 @@ export default function InvoiceDetail({
       // Amount payable (right)
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(20, 20, 20)
       doc.text('Amount Payable:', MR - 44, y + 7)
-      doc.text(`\u20b9${fmt(invoice.total)}`, MR, y + 7, { align: 'right' })
+      doc.text(`Rs. ${fmt(invoice.total)}`, MR, y + 7, { align: 'right' })
 
       doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.5)
       doc.line(ML, y + stripH, MR, y + stripH)
