@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
@@ -48,6 +48,28 @@ const fmt = (n: number) =>
 
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+
+// ── Noto Sans font loader (Unicode — supports ₹ and all scripts) ────────────
+// Cached per browser session so subsequent PDF downloads are instant.
+let _notoCache: { regular: string; bold: string } | null = null
+async function loadNotoSans() {
+  if (_notoCache) return _notoCache
+  async function ttfToBase64(path: string): Promise<string> {
+    const buf = await fetch(path).then(r => r.arrayBuffer())
+    const bytes = new Uint8Array(buf)
+    let str = ''
+    // Chunk to avoid call-stack overflow on large (550 KB) arrays
+    for (let i = 0; i < bytes.length; i += 8192) {
+      str += String.fromCharCode(...Array.from(bytes.subarray(i, i + 8192)))
+    }
+    return btoa(str)
+  }
+  _notoCache = {
+    regular: await ttfToBase64('/fonts/NotoSans-Regular.ttf'),
+    bold:    await ttfToBase64('/fonts/NotoSans-Bold.ttf'),
+  }
+  return _notoCache
+}
 
 function numberToWords(n: number): string {
   if (n === 0) return 'INR Zero Rupees Only.'
@@ -131,14 +153,22 @@ export default function InvoiceDetail({
         } catch {}
       }
 
+      // ── Register Noto Sans (Unicode — ₹ and all scripts) ─────────────────
+      const noto = await loadNotoSans()
+      doc.addFileToVFS('NotoSans-Regular.ttf', noto.regular)
+      doc.addFileToVFS('NotoSans-Bold.ttf', noto.bold)
+      doc.addFont('NotoSans-Regular.ttf', 'NotoSans', 'normal')
+      doc.addFont('NotoSans-Bold.ttf', 'NotoSans', 'bold')
+      doc.setFont('NotoSans', 'normal') // default for entire document
+
       // ── SECTION 1 — HEADER ───────────────────────────────────────────
       doc.setFontSize(10)
-      doc.setFont('helvetica', 'bold')
+      doc.setFont('NotoSans', 'bold')
       doc.setTextColor(0, 119, 167)
       doc.text('INVOICE', ML, y)
 
       doc.setFontSize(7.5)
-      doc.setFont('helvetica', 'normal')
+      doc.setFont('NotoSans', 'normal')
       doc.setTextColor(80, 80, 80)
       doc.text('ORIGINAL FOR RECIPIENT', MR, y, { align: 'right' })
       y += 6
@@ -147,7 +177,7 @@ export default function InvoiceDetail({
 
       // Business name
       doc.setFontSize(15)
-      doc.setFont('helvetica', 'bold')
+      doc.setFont('NotoSans', 'bold')
       doc.setTextColor(20, 20, 20)
       doc.text(bName.toUpperCase(), ML, y)
       y += 6
@@ -157,7 +187,7 @@ export default function InvoiceDetail({
         const addrW = logoB64 ? 138 : CW
         const addrLines = doc.splitTextToSize(bAddress, addrW)
         doc.setFontSize(7.5)
-        doc.setFont('helvetica', 'normal')
+        doc.setFont('NotoSans', 'normal')
         doc.setTextColor(60, 60, 60)
         addrLines.forEach((l: string) => { doc.text(l, ML, y); y += 3.8 })
       }
@@ -169,14 +199,14 @@ export default function InvoiceDetail({
       ].filter(Boolean)
       if (contactParts.length) {
         doc.setFontSize(7.5)
-        doc.setFont('helvetica', 'normal')
+        doc.setFont('NotoSans', 'normal')
         doc.setTextColor(60, 60, 60)
         doc.text(contactParts.join('   '), ML, y)
         y += 3.8
       }
       if (bGstin) {
         doc.setFontSize(7.5)
-        doc.setFont('helvetica', 'normal')
+        doc.setFont('NotoSans', 'normal')
         doc.setTextColor(60, 60, 60)
         doc.text(`GSTIN: ${bGstin}`, ML, y)
         y += 3.8
@@ -192,13 +222,13 @@ export default function InvoiceDetail({
       // ── SECTION 2 — INVOICE INFO ROW ─────────────────────────────────
       const c1 = ML, c2 = ML + CW / 3, c3 = ML + (CW * 2) / 3
 
-      doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80)
+      doc.setFontSize(7.5); doc.setFont('NotoSans', 'normal'); doc.setTextColor(80, 80, 80)
       doc.text('Invoice #:', c1, y)
       doc.text('Invoice Date:', c2, y)
       if (invoice.due_date) doc.text('Due Date:', c3, y)
       y += 4
 
-      doc.setFontSize(8.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20)
+      doc.setFontSize(8.5); doc.setFont('NotoSans', 'bold'); doc.setTextColor(20, 20, 20)
       doc.text(invoice.invoice_number, c1, y)
       doc.text(fmtDate(invoice.issue_date), c2, y)
       if (invoice.due_date) doc.text(fmtDate(invoice.due_date), c3, y)
@@ -211,25 +241,25 @@ export default function InvoiceDetail({
       // ── SECTION 3 — CUSTOMER INFO (3 cols) ───────────────────────────
       const colW3 = CW / 3
 
-      doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80)
+      doc.setFontSize(7.5); doc.setFont('NotoSans', 'normal'); doc.setTextColor(80, 80, 80)
       doc.text('Customer Details:', c1, y)
       doc.text('Billing Address:', c2, y)
       doc.text('Shipping Address:', c3, y)
       y += 4
 
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(20, 20, 20)
+      doc.setFont('NotoSans', 'bold'); doc.setFontSize(8.5); doc.setTextColor(20, 20, 20)
       doc.text(cust.name ?? '', c1, y)
 
       const custAddr  = [cust.address, cust.city].filter(Boolean).join(', ')
       const custLines = doc.splitTextToSize(custAddr || '—', colW3 - 3)
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(60, 60, 60)
+      doc.setFont('NotoSans', 'normal'); doc.setFontSize(7.5); doc.setTextColor(60, 60, 60)
       let bilY = y, shiY = y
       custLines.forEach((l: string) => { doc.text(l, c2, bilY); bilY += 3.5 })
       custLines.forEach((l: string) => { doc.text(l, c3, shiY); shiY += 3.5 })
 
       y += 4
       if (cust.gstin) {
-        doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(60, 60, 60)
+        doc.setFontSize(7.5); doc.setFont('NotoSans', 'normal'); doc.setTextColor(60, 60, 60)
         doc.text(`GSTIN: ${cust.gstin}`, c1, y); y += 4
       }
       y = Math.max(y, bilY, shiY) + 4
@@ -245,7 +275,7 @@ export default function InvoiceDetail({
       // Header row
       doc.setFillColor(34, 34, 34)
       doc.rect(ML, y, CW, 8, 'F')
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255)
+      doc.setFont('NotoSans', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255)
       const hY = y + 5.3
       doc.text('#', tNum + 1, hY)
       doc.text('Item', tItem, hY)
@@ -261,7 +291,7 @@ export default function InvoiceDetail({
           doc.setFillColor(248, 249, 250)
           doc.rect(ML, y, CW, rH, 'F')
         }
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(30, 30, 30)
+        doc.setFont('NotoSans', 'normal'); doc.setFontSize(8); doc.setTextColor(30, 30, 30)
         const rY = y + 4.5
         doc.text(String(idx + 1), tNum + 1, rY)
         doc.text(item.description.substring(0, 38), tItem, rY)
@@ -278,29 +308,29 @@ export default function InvoiceDetail({
       const tLX = ML + CW * 0.55
 
       if ((invoice.discount_amount ?? 0) > 0) {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(60, 60, 60)
+        doc.setFont('NotoSans', 'normal'); doc.setFontSize(8.5); doc.setTextColor(60, 60, 60)
         const dl = invoice.discount_type === 'pct'
           ? `Discount (${invoice.discount_value}%)` : 'Discount'
         doc.text(dl, tLX, y)
         doc.setTextColor(180, 30, 30)
-        doc.text(`- Rs. ${fmt(invoice.discount_amount ?? 0)}`, MR, y, { align: 'right' })
+        doc.text(`- ₹${fmt(invoice.discount_amount ?? 0)}`, MR, y, { align: 'right' })
         y += 7
       }
 
       if (invoice.apply_gst) {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(60, 60, 60)
+        doc.setFont('NotoSans', 'normal'); doc.setFontSize(8.5); doc.setTextColor(60, 60, 60)
         doc.text(`GST (${invoice.gst_rate}%)`, tLX, y)
         doc.setTextColor(30, 30, 30)
-        doc.text(`Rs. ${fmt(invoice.gst_amount)}`, MR, y, { align: 'right' })
+        doc.text(`₹${fmt(invoice.gst_amount)}`, MR, y, { align: 'right' })
         y += 7
       }
 
       // Total line
       doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3)
       doc.line(tLX - 2, y - 2, MR, y - 2)
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(20, 20, 20)
+      doc.setFont('NotoSans', 'bold'); doc.setFontSize(12); doc.setTextColor(20, 20, 20)
       doc.text('Total', tLX, y + 5)
-      doc.text(`Rs. ${fmt(invoice.total)}`, MR, y + 5, { align: 'right' })
+      doc.text(`₹${fmt(invoice.total)}`, MR, y + 5, { align: 'right' })
       y += 12
 
       // ── DIVIDER ──────────────────────────────────────────────────────
@@ -316,10 +346,10 @@ export default function InvoiceDetail({
       const amtWords  = numberToWords(invoice.total)
       const hasDisc   = (invoice.discount_amount ?? 0) > 0
 
-      doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(60, 60, 60)
+      doc.setFontSize(7.5); doc.setFont('NotoSans', 'normal'); doc.setTextColor(60, 60, 60)
       doc.text(`Total Items / Qty : ${invoice.invoice_items.length} / ${totalQty}`, ML + 2, y + 5)
       if (hasDisc) {
-        doc.text(`Total Discount : Rs. ${fmt(invoice.discount_amount ?? 0)}`, ML + 2, y + 10)
+        doc.text(`Total Discount : ₹${fmt(invoice.discount_amount ?? 0)}`, ML + 2, y + 10)
       }
       const wordsStr  = `Total amount (in words): ${amtWords}`
       const wordsLines = doc.splitTextToSize(wordsStr, CW * 0.65)
@@ -327,9 +357,9 @@ export default function InvoiceDetail({
       wordsLines.forEach((l: string, i: number) => doc.text(l, ML + 2, wordsStartY + i * 3.5))
 
       // Amount payable (right)
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(20, 20, 20)
+      doc.setFont('NotoSans', 'bold'); doc.setFontSize(8.5); doc.setTextColor(20, 20, 20)
       doc.text('Amount Payable:', MR - 44, y + 7)
-      doc.text(`Rs. ${fmt(invoice.total)}`, MR, y + 7, { align: 'right' })
+      doc.text(`₹${fmt(invoice.total)}`, MR, y + 7, { align: 'right' })
 
       doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.5)
       doc.line(ML, y + stripH, MR, y + stripH)
@@ -352,7 +382,7 @@ export default function InvoiceDetail({
         } catch {}
       }
 
-      doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(50, 50, 50)
+      doc.setFontSize(8); doc.setFont('NotoSans', 'normal'); doc.setTextColor(50, 50, 50)
       doc.text(`For ${bName.toUpperCase()}`, MR, y, { align: 'right' })
       y += 4
 
@@ -374,17 +404,17 @@ export default function InvoiceDetail({
       // ── SECTION 8 — NOTES & T&C ──────────────────────────────────────
       const noteText = invoice.notes || invNotes
       if (noteText) {
-        doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20)
+        doc.setFontSize(8); doc.setFont('NotoSans', 'bold'); doc.setTextColor(20, 20, 20)
         doc.text('Notes:', ML, y); y += 4
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(60, 60, 60)
+        doc.setFont('NotoSans', 'normal'); doc.setFontSize(7.5); doc.setTextColor(60, 60, 60)
         doc.splitTextToSize(`"${noteText}"`, CW)
           .forEach((l: string) => { doc.text(l, ML, y); y += 3.5 })
         y += 3
       }
 
-      doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20)
+      doc.setFontSize(8); doc.setFont('NotoSans', 'bold'); doc.setTextColor(20, 20, 20)
       doc.text('Terms and Conditions:', ML, y); y += 4
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(60, 60, 60)
+      doc.setFont('NotoSans', 'normal'); doc.setFontSize(7.5); doc.setTextColor(60, 60, 60)
       doc.text('1. Goods once sold will not be taken back or exchanged', ML, y); y += 3.8
       doc.text('2. All disputes are subject to COIMBATORE jurisdiction only', ML, y)
 
