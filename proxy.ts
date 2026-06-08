@@ -34,7 +34,8 @@ export async function proxy(request: NextRequest) {
   const isPublicAsset =
     request.nextUrl.pathname.startsWith('/_next') ||
     request.nextUrl.pathname.startsWith('/favicon') ||
-    request.nextUrl.pathname.startsWith('/auth')
+    request.nextUrl.pathname.startsWith('/auth') ||
+    request.nextUrl.pathname.startsWith('/api/')   // API routes handle their own auth
 
   if (!user && !isAuthPage && !isPublicAsset) {
     const url = request.nextUrl.clone()

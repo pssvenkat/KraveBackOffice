@@ -1,20 +1,27 @@
 const BASE = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`
 
-// Escape special chars for Telegram MarkdownV2
+/** Escape HTML entities for Telegram HTML parse_mode */
 export function esc(text: string): string {
-  return text.replace(/([_*[\]()~`>#+\-=|{}.!\\])/g, '\\$1')
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
 }
 
 export async function sendMessage(chatId: number, text: string): Promise<void> {
-  await fetch(`${BASE}/sendMessage`, {
+  const res = await fetch(`${BASE}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       chat_id: chatId,
       text,
-      parse_mode: 'MarkdownV2',
+      parse_mode: 'HTML',
     }),
   })
+  if (!res.ok) {
+    const body = await res.text()
+    console.error(`Telegram sendMessage failed [${res.status}]:`, body)
+  }
 }
 
 export type TelegramUpdate = {
