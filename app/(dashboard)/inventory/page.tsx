@@ -1,13 +1,15 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import InventoryClient from '@/components/inventory/InventoryClient'
+import LastInventoryDate from '@/components/inventory/LastInventoryDate'
 
 export const metadata: Metadata = { title: 'Inventory' }
 
 export default async function InventoryPage() {
   const supabase = await createClient()
 
-  const [{ data: categories, error: catErr }, { data: items, error: itemErr }] =
+  const [{ data: categories, error: catErr }, { data: items, error: itemErr }, { data: lastDateRow }] =
     await Promise.all([
       supabase
         .from('inventory_categories')
@@ -18,7 +20,14 @@ export default async function InventoryPage() {
         .select('id, name, category_id, unit, quantity, reorder_level, cost_per_unit, tag, is_active, inventory_categories(name, icon)')
         .eq('is_active', true)
         .order('name'),
+      createServiceClient()
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'last_inventory_date')
+        .maybeSingle(),
     ])
+
+  const lastInventoryDate: string | null = lastDateRow?.value ?? null
 
   const tablesMissing =
     catErr?.message.includes('relation') || itemErr?.message.includes('relation')
@@ -59,6 +68,8 @@ export default async function InventoryPage() {
           Track seeds, trays, and packing materials — get alerted when stock runs low
         </p>
       </div>
+
+      <LastInventoryDate current={lastInventoryDate} />
 
       <InventoryClient
         categories={categories ?? []}

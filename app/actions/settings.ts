@@ -172,3 +172,24 @@ export async function uploadSignature(
     return { error: err instanceof Error ? err.message : 'Upload failed' }
   }
 }
+
+// ── Last Inventory Date ───────────────────────────────────────────────────────
+
+export async function setLastInventoryDate(
+  date: string
+): Promise<{ error?: string }> {
+  try {
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return { error: 'Invalid date format' }
+    }
+    const supabase = createServiceClient()
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert({ key: 'last_inventory_date', value: date }, { onConflict: 'key' })
+    if (error) return { error: error.message }
+    revalidatePath('/inventory')
+    return {}
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Failed to save' }
+  }
+}
