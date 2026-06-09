@@ -50,6 +50,15 @@ function StatusBadge({ qty, reorder }: { qty: number; reorder: number }) {
 
 type AdjustTarget = { id: string; name: string; quantity: number; unit: string }
 
+const CATEGORY_ORDER = ['Seeds', 'Packaging', 'Kits', 'Miscellaneous']
+function sortCategories(cats: Category[]) {
+  return [...cats].sort(
+    (a, b) =>
+      (CATEGORY_ORDER.indexOf(a.name) === -1 ? 99 : CATEGORY_ORDER.indexOf(a.name)) -
+      (CATEGORY_ORDER.indexOf(b.name) === -1 ? 99 : CATEGORY_ORDER.indexOf(b.name))
+  )
+}
+
 export default function InventoryClient({
   items,
   categories,
@@ -57,7 +66,8 @@ export default function InventoryClient({
   items: InventoryItem[]
   categories: Category[]
 }) {
-  const [activeTab, setActiveTab] = useState(categories[0]?.id ?? '')
+  const sorted = sortCategories(categories)
+  const [activeTab, setActiveTab] = useState(sorted[0]?.id ?? '')
   const [search, setSearch] = useState('')
   const [itemModalOpen, setItemModalOpen] = useState(false)
   const [editItem, setEditItem] = useState<ItemForEdit | null>(null)
@@ -131,7 +141,7 @@ export default function InventoryClient({
 
       {/* Category tabs */}
       <div className="flex gap-1 bg-[#0a0f1a] border border-[#1e2d45] rounded-xl p-1">
-        {categories.map((cat) => {
+        {sorted.map((cat) => {
           const catItems = items.filter((i) => i.category_id === cat.id)
           const catLow = catItems.filter((i) => getStatus(i.quantity, i.reorder_level) !== 'ok').length
           return (
@@ -297,7 +307,7 @@ export default function InventoryClient({
       <InventoryItemModal
         open={itemModalOpen}
         onClose={() => { setItemModalOpen(false); setEditItem(null) }}
-        categories={categories}
+        categories={sorted}
         item={editItem}
         defaultCategoryId={activeTab}
       />
