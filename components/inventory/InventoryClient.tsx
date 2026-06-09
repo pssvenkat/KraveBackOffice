@@ -70,6 +70,7 @@ export default function InventoryClient({
   const [activeTab, setActiveTab] = useState(sorted[0]?.id ?? '')
   const [search, setSearch] = useState('')
   const [itemModalOpen, setItemModalOpen] = useState(false)
+  const [modalKey, setModalKey] = useState(0)
   const [editItem, setEditItem] = useState<ItemForEdit | null>(null)
   const [adjustTarget, setAdjustTarget] = useState<AdjustTarget | null>(null)
 
@@ -88,7 +89,7 @@ export default function InventoryClient({
     return s === 'low' || s === 'critical'
   }).length
 
-  function openAdd() { setEditItem(null); setItemModalOpen(true) }
+  function openAdd() { setEditItem(null); setModalKey((k) => k + 1); setItemModalOpen(true) }
   function openEdit(item: InventoryItem) {
     setEditItem({
       id: item.id,
@@ -100,6 +101,7 @@ export default function InventoryClient({
       cost_per_unit: item.cost_per_unit,
       tag: item.tag,
     })
+    setModalKey((k) => k + 1)
     setItemModalOpen(true)
   }
 
@@ -305,6 +307,7 @@ export default function InventoryClient({
 
       {/* Modals */}
       <InventoryItemModal
+        key={modalKey}
         open={itemModalOpen}
         onClose={() => { setItemModalOpen(false); setEditItem(null) }}
         categories={sorted}
