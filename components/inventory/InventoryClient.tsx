@@ -17,6 +17,7 @@ export type InventoryItem = {
   quantity: number
   reorder_level: number
   cost_per_unit: number | null
+  tag: string | null
   is_active: boolean
   inventory_categories: { name: string; icon: string }
 }
@@ -87,6 +88,7 @@ export default function InventoryClient({
       quantity: item.quantity,
       reorder_level: item.reorder_level,
       cost_per_unit: item.cost_per_unit,
+      tag: item.tag,
     })
     setItemModalOpen(true)
   }
@@ -186,7 +188,7 @@ export default function InventoryClient({
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#1e2d45]">
-                  {['Item', 'Stock', 'Reorder At', 'Cost/Unit', 'Status', 'Actions'].map((h) => (
+                  {['Item', 'Tag', 'Stock', 'Reorder At', 'Cost/Unit', 'Status', 'Actions'].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
                       {h}
                     </th>
@@ -202,7 +204,17 @@ export default function InventoryClient({
                       <p className="text-xs text-slate-600">{item.unit}</p>
                     </td>
 
-                    {/* Stock */}
+                    {/* Tag */}
+                    <td className="px-4 py-3.5">
+                      {item.tag ? (
+                        <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                          {item.tag}
+                        </span>
+                      ) : (
+                        <span className="text-slate-700 text-xs">—</span>
+                      )}
+                    </td>
+
                     <td className="px-4 py-3.5">
                       <p className={`text-sm font-bold ${
                         getStatus(item.quantity, item.reorder_level) === 'ok'
@@ -273,7 +285,7 @@ export default function InventoryClient({
                   <td className="px-4 py-2.5 text-xs text-slate-600">
                     {tabItems.length} item{tabItems.length !== 1 ? 's' : ''}
                   </td>
-                  <td colSpan={5} />
+                  <td colSpan={6} />
                 </tr>
               </tfoot>
             </table>
