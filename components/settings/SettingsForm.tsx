@@ -113,8 +113,11 @@ export default function SettingsForm({ settings }: Props) {
       <Section icon={FileText} title="Invoice Configuration">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <Field label="Invoice Prefix" name="invoice_prefix" settings={settings} errors={state.errors} placeholder="KM" />
-            <p className="text-xs text-slate-600 mt-1">e.g. KM → KM-2026-001</p>
+            <Field label="Invoice Prefix" name="invoice_prefix" settings={settings} errors={state.errors} placeholder="e.g. KM-2026-" />
+            <p className="text-xs text-slate-600 mt-1">
+              Prefix is joined directly to the number — e.g. <span className="text-slate-500">KM-2026-</span> → <span className="text-slate-400">KM-2026-001</span>.
+              Leave empty for plain numbers (<span className="text-slate-400">001</span>, <span className="text-slate-400">002</span>…)
+            </p>
           </div>
           <div className="sm:col-span-2">
             <Field label="Default Invoice Notes" name="invoice_notes" settings={settings} errors={state.errors} placeholder="Thank you for your business! Payment due within 14 days." textarea />

@@ -21,7 +21,7 @@ const SettingsSchema = z.object({
   account_number: z.string().max(30).optional(),
   ifsc_code: z.string().max(15).optional(),
   upi_id: z.string().max(60).optional(),
-  invoice_prefix: z.string().max(10).optional(),
+  invoice_prefix: z.string().max(20).optional(),
   invoice_notes: z.string().max(500).optional(),
 })
 

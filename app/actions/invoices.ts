@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -37,21 +38,48 @@ const InvoiceSchema = z.object({
 // ─── Invoice number generator ─────────────────────────────────────────────
 
 async function nextInvoiceNumber(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const year = new Date().getFullYear()
-  const { data } = await supabase
-    .from('invoices')
-    .select('invoice_number')
-    .like('invoice_number', `KM-${year}-%`)
-    .order('invoice_number', { ascending: false })
-    .limit(1)
+  // Read prefix from settings (empty string = no prefix)
+  const { data: prefixRow } = await createServiceClient()
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'invoice_prefix')
     .maybeSingle()
+  const prefix = (prefixRow?.value ?? '').trim()
 
-  let seq = 1
-  if (data?.invoice_number) {
-    const parts = data.invoice_number.split('-')
-    seq = parseInt(parts[2] ?? '0') + 1
+  let seq = 0
+
+  if (prefix) {
+    // Find highest invoice number that starts with this prefix
+    const { data } = await supabase
+      .from('invoices')
+      .select('invoice_number')
+      .like('invoice_number', `${prefix}%`)
+      .order('invoice_number', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (data?.invoice_number) {
+      const numPart = data.invoice_number.slice(prefix.length)
+      const n = parseInt(numPart, 10)
+      if (!isNaN(n)) seq = n
+    }
+  } else {
+    // No prefix — look for purely numeric invoice numbers
+    const { data: rows } = await supabase
+      .from('invoices')
+      .select('invoice_number')
+      .order('created_at', { ascending: false })
+      .limit(200)
+
+    for (const row of rows ?? []) {
+      if (/^\d+$/.test(row.invoice_number)) {
+        const n = parseInt(row.invoice_number, 10)
+        if (!isNaN(n) && n > seq) seq = n
+      }
+    }
   }
-  return `KM-${year}-${String(seq).padStart(3, '0')}`
+
+  return `${prefix}${String(seq + 1).padStart(3, '0')}`
 }
 
 // ─── Create Invoice ───────────────────────────────────────────────────────
