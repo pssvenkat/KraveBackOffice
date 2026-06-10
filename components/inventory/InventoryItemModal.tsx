@@ -20,6 +20,7 @@ export type ItemForEdit = {
   reorder_level: number
   cost_per_unit: number | null
   tag: string | null
+  note: string | null
 }
 
 type Props = {
@@ -146,6 +147,24 @@ export default function InventoryItemModal({
             />
           </div>
 
+          {/* Note */}
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">
+              Note <span className="text-slate-600 normal-case">optional</span>
+            </label>
+            <textarea
+              id="field-item-note"
+              name="note"
+              rows={2}
+              placeholder="e.g. Store in cool, dry place"
+              defaultValue={item?.note ?? ''}
+              maxLength={500}
+              className="w-full px-3.5 py-2.5 bg-[#0a0f1a] border border-[#1e2d45] rounded-xl text-slate-100 placeholder:text-slate-600 text-sm focus:outline-none focus:border-green-500/70 focus:ring-1 focus:ring-green-500/20 transition-all resize-none"
+            />
+          </div>
+
+
+          {/* Unit */}
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">
               Unit <span className="text-red-400">*</span>

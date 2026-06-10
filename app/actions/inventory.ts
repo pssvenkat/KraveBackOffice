@@ -1,4 +1,4 @@
-﻿'use server'
+'use server'
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -12,6 +12,7 @@ const ItemSchema = z.object({
   reorder_level: z.coerce.number().min(0, 'Reorder level must be 0 or more'),
   cost_per_unit: z.coerce.number().min(0).optional(),
   tag: z.string().max(50).optional(),
+  note: z.string().max(500).optional(),
 })
 
 const AdjustSchema = z.object({
@@ -44,6 +45,7 @@ export async function createInventoryItem(
       reorder_level: formData.get('reorder_level') || 0,
       cost_per_unit: formData.get('cost_per_unit') || undefined,
       tag: (formData.get('tag') as string) || undefined,
+      note: (formData.get('note') as string) || undefined,
     })
 
     if (!validated.success) {
@@ -54,6 +56,7 @@ export async function createInventoryItem(
       ...validated.data,
       cost_per_unit: validated.data.cost_per_unit ?? null,
       tag: validated.data.tag ?? null,
+      note: validated.data.note ?? null,
     })
 
     if (error) return { message: error.message, success: false }
@@ -84,6 +87,7 @@ export async function updateInventoryItem(
       reorder_level: formData.get('reorder_level') || 0,
       cost_per_unit: formData.get('cost_per_unit') || undefined,
       tag: (formData.get('tag') as string) || undefined,
+      note: (formData.get('note') as string) || undefined,
     })
 
     if (!validated.success) {
@@ -92,7 +96,12 @@ export async function updateInventoryItem(
 
     const { error } = await supabase
       .from('inventory_items')
-      .update({ ...validated.data, cost_per_unit: validated.data.cost_per_unit ?? null, tag: validated.data.tag ?? null })
+      .update({
+        ...validated.data,
+        cost_per_unit: validated.data.cost_per_unit ?? null,
+        tag: validated.data.tag ?? null,
+        note: validated.data.note ?? null,
+      })
       .eq('id', id)
 
     if (error) return { message: error.message, success: false }

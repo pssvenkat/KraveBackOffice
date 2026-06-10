@@ -18,6 +18,7 @@ export type InventoryItem = {
   reorder_level: number
   cost_per_unit: number | null
   tag: string | null
+  note: string | null
   is_active: boolean
   inventory_categories: { name: string; icon: string }
 }
@@ -74,14 +75,28 @@ export default function InventoryClient({
   const [editItem, setEditItem] = useState<ItemForEdit | null>(null)
   const [adjustTarget, setAdjustTarget] = useState<AdjustTarget | null>(null)
 
+  const [tagFilter, setTagFilter] = useState<string | null>(null)
+
+  // Reset tag filter when switching category tabs
+  function switchTab(id: string) { setActiveTab(id); setTagFilter(null) }
+
+  // Unique tags for the current category (for filter pills)
+  const tabTags = useMemo(() => {
+    const tags = items
+      .filter((i) => i.category_id === activeTab && i.tag)
+      .map((i) => i.tag as string)
+    return [...new Set(tags)].sort()
+  }, [items, activeTab])
+
   const tabItems = useMemo(() => {
     const q = search.toLowerCase()
     return items.filter(
       (i) =>
         i.category_id === activeTab &&
-        (!q || i.name.toLowerCase().includes(q))
+        (!tagFilter || i.tag === tagFilter) &&
+        (!q || i.name.toLowerCase().includes(q) || (i.note ?? '').toLowerCase().includes(q))
     )
-  }, [items, activeTab, search])
+  }, [items, activeTab, search, tagFilter])
 
   // Summary counts
   const lowCount = items.filter((i) => {
@@ -100,6 +115,7 @@ export default function InventoryClient({
       reorder_level: item.reorder_level,
       cost_per_unit: item.cost_per_unit,
       tag: item.tag,
+      note: item.note,
     })
     setModalKey((k) => k + 1)
     setItemModalOpen(true)
@@ -150,7 +166,7 @@ export default function InventoryClient({
             <button
               key={cat.id}
               id={`tab-${cat.name.toLowerCase().replace(/\s+/g, '-')}`}
-              onClick={() => setActiveTab(cat.id)}
+              onClick={() => switchTab(cat.id)}
               className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                 activeTab === cat.id
                   ? 'bg-[#111827] text-slate-100 shadow-sm border border-[#1e2d45]'
@@ -170,7 +186,36 @@ export default function InventoryClient({
         })}
       </div>
 
-      {/* Table */}
+      {/* Tag filter pills */}
+      {tabTags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Filter:</span>
+          <button
+            onClick={() => setTagFilter(null)}
+            className={`px-3 py-1 text-xs font-semibold rounded-full border transition-all ${
+              !tagFilter
+                ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+                : 'bg-[#0a0f1a] text-slate-500 border-[#1e2d45] hover:text-slate-300'
+            }`}
+          >
+            All
+          </button>
+          {tabTags.map((tag) => (
+            <button
+              key={tag}
+              onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
+              className={`px-3 py-1 text-xs font-semibold rounded-full border transition-all ${
+                tagFilter === tag
+                  ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+                  : 'bg-[#0a0f1a] text-slate-500 border-[#1e2d45] hover:text-slate-300'
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      )}
+
       {tabItems.length === 0 ? (
         <div className="bg-[#111827] border border-[#1e2d45] rounded-2xl p-14 flex flex-col items-center justify-center text-center">
           <Package className="w-12 h-12 text-slate-700 mb-4" />
@@ -200,7 +245,7 @@ export default function InventoryClient({
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#1e2d45]">
-                  {['Item', 'Tag', 'Stock', 'Reorder At', 'Cost/Unit', 'Status', 'Actions'].map((h) => (
+                  {['Item', 'Tag', 'Note', 'Stock', 'Reorder At', 'Cost/Unit', 'Status', 'Actions'].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
                       {h}
                     </th>
@@ -227,6 +272,21 @@ export default function InventoryClient({
                       )}
                     </td>
 
+                    {/* Note */}
+                    <td className="px-4 py-3.5 max-w-[180px]">
+                      {item.note ? (
+                        <p
+                          className="text-xs text-slate-400 truncate"
+                          title={item.note}
+                        >
+                          {item.note}
+                        </p>
+                      ) : (
+                        <span className="text-slate-700 text-xs">—</span>
+                      )}
+                    </td>
+
+                    {/* Stock */}
                     <td className="px-4 py-3.5">
                       <p className={`text-sm font-bold ${
                         getStatus(item.quantity, item.reorder_level) === 'ok'
@@ -297,7 +357,7 @@ export default function InventoryClient({
                   <td className="px-4 py-2.5 text-xs text-slate-600">
                     {tabItems.length} item{tabItems.length !== 1 ? 's' : ''}
                   </td>
-                  <td colSpan={6} />
+                  <td colSpan={7} />
                 </tr>
               </tfoot>
             </table>

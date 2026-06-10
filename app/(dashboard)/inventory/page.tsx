@@ -17,7 +17,7 @@ export default async function InventoryPage() {
         .order('name'),
       supabase
         .from('inventory_items')
-        .select('id, name, category_id, unit, quantity, reorder_level, cost_per_unit, tag, is_active, inventory_categories(name, icon)')
+        .select('id, name, category_id, unit, quantity, reorder_level, cost_per_unit, tag, note, is_active, inventory_categories(name, icon)')
         .eq('is_active', true)
         .order('name'),
       createServiceClient()
