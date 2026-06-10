@@ -9,7 +9,7 @@ import { createInvoice, type InvoiceFormState, type LineItemInput } from '@/app/
 type Customer = { id: string; name: string; gstin: string | null }
 type CatalogItem = { id: string; name: string; description: string | null; uom: string; default_price: number }
 
-type Props = { customers: Customer[]; catalogItems: CatalogItem[] }
+type Props = { customers: Customer[]; catalogItems: CatalogItem[]; defaultGstRate: number }
 
 const initialState: InvoiceFormState = {}
 
@@ -40,7 +40,7 @@ function cellClass() {
   return 'px-2.5 py-2 bg-[#0a0f1a] border border-[#1e2d45] rounded-lg text-slate-100 placeholder:text-slate-700 text-sm focus:outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/20 transition-all w-full'
 }
 
-export default function InvoiceForm({ customers, catalogItems }: Props) {
+export default function InvoiceForm({ customers, catalogItems, defaultGstRate }: Props) {
   const [state, formAction] = useActionState(createInvoice, initialState)
   const router = useRouter()
   const [items, setItems] = useState<LineItemInput[]>([{ ...EMPTY_ITEM }])
@@ -58,7 +58,7 @@ export default function InvoiceForm({ customers, catalogItems }: Props) {
     : discountType === 'flat' ? Math.min(subtotal, discountValue)
     : 0
   const netAmount = subtotal - discountAmount
-  const gstAmount = applyGst ? netAmount * 0.05 : 0
+  const gstAmount = applyGst ? netAmount * (defaultGstRate / 100) : 0
   const total = netAmount + gstAmount
 
   function addItem() { setItems((p) => [...p, { ...EMPTY_ITEM }]) }
@@ -297,7 +297,7 @@ export default function InvoiceForm({ customers, catalogItems }: Props) {
             <label className="flex items-center justify-between cursor-pointer">
               <div>
                 <p className="text-sm font-medium text-slate-300">Apply GST</p>
-                <p className="text-xs text-slate-600">5% GST on net amount</p>
+                <p className="text-xs text-slate-600">{defaultGstRate}% GST on net amount</p>
               </div>
               <div className="relative">
                 <input id="toggle-gst" name="apply_gst" type="checkbox" checked={applyGst} onChange={(e) => setApplyGst(e.target.checked)} className="sr-only peer" />

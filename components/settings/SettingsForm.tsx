@@ -119,6 +119,29 @@ export default function SettingsForm({ settings }: Props) {
               Leave empty for plain numbers (<span className="text-slate-400">001</span>, <span className="text-slate-400">002</span>…)
             </p>
           </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">
+              Default GST Rate
+            </label>
+            <div className="relative">
+              <input
+                id="field-default-gst-rate"
+                name="default_gst_rate"
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                defaultValue={settings.default_gst_rate ?? '5'}
+                className={`${field('default_gst_rate', state.errors)} pr-8`}
+                placeholder="5"
+              />
+              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-500 pointer-events-none">%</span>
+            </div>
+            {state.errors?.default_gst_rate && (
+              <p className="mt-1 text-xs text-red-400">{state.errors.default_gst_rate[0]}</p>
+            )}
+            <p className="text-xs text-slate-600 mt-1">Applied to new invoices when GST is enabled</p>
+          </div>
           <div className="sm:col-span-2">
             <Field label="Default Invoice Notes" name="invoice_notes" settings={settings} errors={state.errors} placeholder="Thank you for your business! Payment due within 14 days." textarea />
           </div>

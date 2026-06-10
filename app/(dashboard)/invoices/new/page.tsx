@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import InvoiceForm from '@/components/invoices/InvoiceForm'
 
 export const metadata: Metadata = { title: 'New Invoice' }
@@ -7,7 +8,7 @@ export const metadata: Metadata = { title: 'New Invoice' }
 export default async function NewInvoicePage() {
   const supabase = await createClient()
 
-  const [{ data: customers }, catalogResult] = await Promise.all([
+  const [{ data: customers }, catalogResult, { data: gstRow }] = await Promise.all([
     supabase
       .from('customers')
       .select('id, name, gstin')
@@ -18,7 +19,14 @@ export default async function NewInvoicePage() {
       .select('id, name, description, uom, default_price')
       .eq('is_active', true)
       .order('name'),
+    createServiceClient()
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'default_gst_rate')
+      .maybeSingle(),
   ])
+
+  const defaultGstRate = parseFloat(gstRow?.value ?? '5') || 5
 
   // catalog_items may not exist yet — fall back to empty list gracefully
   const catalogItems = catalogResult.error ? [] : (catalogResult.data ?? [])
@@ -33,7 +41,7 @@ export default async function NewInvoicePage() {
             : 'Add line items manually — set up Items Catalog for auto-fill'}
         </p>
       </div>
-      <InvoiceForm customers={customers ?? []} catalogItems={catalogItems} />
+      <InvoiceForm customers={customers ?? []} catalogItems={catalogItems} defaultGstRate={defaultGstRate} />
     </div>
   )
 }

@@ -23,6 +23,7 @@ const SettingsSchema = z.object({
   upi_id: z.string().max(60).optional(),
   invoice_prefix: z.string().max(20).optional(),
   invoice_notes: z.string().max(500).optional(),
+  default_gst_rate: z.coerce.number().min(0).max(100).optional(),
 })
 
 export async function saveSettings(
@@ -45,6 +46,7 @@ export async function saveSettings(
     upi_id: formData.get('upi_id') || undefined,
     invoice_prefix: formData.get('invoice_prefix') || undefined,
     invoice_notes: formData.get('invoice_notes') || undefined,
+    default_gst_rate: formData.get('default_gst_rate') || undefined,
   }
 
   const validated = SettingsSchema.safeParse(raw)

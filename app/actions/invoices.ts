@@ -125,7 +125,12 @@ export async function createInvoice(
     : discount_type === 'flat' ? Math.min(subtotal, discount_value)
     : 0
   const netAmount = subtotal - discountAmount
-  const gstRate = 5
+  const { data: gstRow } = await createServiceClient()
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'default_gst_rate')
+    .maybeSingle()
+  const gstRate = parseFloat(gstRow?.value ?? '5') || 5
   const gstAmount = applyGst ? Math.round(netAmount * gstRate) / 100 : 0
   const total = netAmount + gstAmount
 
